@@ -292,6 +292,7 @@ export default function App() {
             NASA/IPAC Infrared Science Archive
           </a>
           . Built for the NASA Space Apps Challenge: Planet X and SPHEREx.
+          <p className="team-credit">Niche Nomads: Anish M., Namish O., Jayanth J., Arnav B.</p>
         </footer>
       )}
     </div>
