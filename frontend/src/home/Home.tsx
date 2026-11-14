@@ -218,6 +218,7 @@ export default function Home({ onGo }: Props) {
           NASA/IPAC Infrared Science Archive
         </a>
         .
+        <p className="team-credit">Niche Nomads: Anish M., Namish O., Jayanth J., Arnav B.</p>
       </footer>
     </div>
   );

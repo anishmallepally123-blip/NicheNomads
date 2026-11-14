@@ -302,6 +302,7 @@ aside .copy { width: 100%; margin-top: var(--space-2xs); }
 .progress { display: inline-flex; align-items: center; gap: var(--space-sm); font: var(--text-xs) var(--font-mono); font-variant-numeric: tabular-nums; }
 progress { width: 120px; height: 6px; accent-color: var(--color-cool); }
 
+.team-credit { margin: var(--space-2xs) 0 0; font-size: var(--text-xs); color: var(--color-faint); letter-spacing: 0.02em; }
 .credits { margin-top: var(--space-xl); font-size: var(--text-xs); color: var(--color-faint); text-align: center; }
 
 /* ---------- Crash screen (ErrorBoundary) ---------- */
