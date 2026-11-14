@@ -27,7 +27,7 @@ export default function OverlayPanel({ overlays }: { overlays: OverlaysState }) 
           <div key={key} className="overlay-layer">
             <label className="check" title={HELP[key]}>
               <input type="checkbox" checked={enabled[key]} onChange={(e) => setEnabled(key, e.target.checked)} />
-              <span className={`swatch swatch-${key}`} style={{ borderColor: LAYER_STYLE[key].color }} />
+              <span className={`ov-swatch ov-swatch-${key}`} style={{ borderColor: LAYER_STYLE[key].color }} />
               {LAYER_STYLE[key].label}
               {detail && <span className="muted overlay-count">{detail}</span>}
             </label>

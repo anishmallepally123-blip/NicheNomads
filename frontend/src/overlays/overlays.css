@@ -1,8 +1,8 @@
 /* Styles for the catalogue overlays module. */
 .overlay-panel { margin: 14px 0; padding-top: 12px; border-top: 1px solid var(--line); }
 .overlay-layer .check { display: flex; align-items: center; gap: 6px; }
-.swatch { display: inline-block; width: 11px; height: 11px; border: 2px solid; border-radius: 50%; flex: none; }
-.swatch-wise { border-radius: 1px; }
+.ov-swatch { display: inline-block; width: 11px; height: 11px; border: 2px solid; border-radius: 50%; flex: none; }
+.ov-swatch-wise { border-radius: 1px; }
 .overlay-count { margin-left: auto; font-size: 12px; font-variant-numeric: tabular-nums; }
 .overlay-error { color: #ff8c8c; font-size: 12px; margin: 2px 0 6px 24px; }
 

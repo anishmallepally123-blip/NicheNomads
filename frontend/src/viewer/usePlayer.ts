@@ -8,13 +8,17 @@ export interface Player {
   setIndex: (i: number) => void;
   step: (delta: number) => void;
   toggle: () => void;
+  setPlaying: (playing: boolean) => void;
   setFps: (fps: number) => void;
 }
 
-export function usePlayer(frameCount: number): Player {
+export function usePlayer(
+  frameCount: number,
+  initial: { fps?: number; playing?: boolean } = {},
+): Player {
   const [index, setIndexRaw] = useState(0);
-  const [playing, setPlaying] = useState(true);
-  const [fps, setFps] = useState(4);
+  const [playing, setPlaying] = useState(initial.playing ?? true);
+  const [fps, setFps] = useState(initial.fps ?? 4);
 
   useEffect(() => {
     if (!playing || frameCount < 2) return;
@@ -45,6 +49,7 @@ export function usePlayer(frameCount: number): Player {
     setIndex,
     step,
     toggle,
+    setPlaying,
     setFps,
   };
 }
