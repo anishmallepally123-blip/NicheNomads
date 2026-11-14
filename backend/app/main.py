@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import config, data_access
 from .api import router
+from .overlays_api import router as overlays_router
 
 
 @asynccontextmanager
@@ -26,6 +27,7 @@ app.add_middleware(
     expose_headers=["X-Wavelength-Um", "X-Bandwidth-Um", "X-Coverage", "X-Flagged-Fraction"],
 )
 app.include_router(router)
+app.include_router(overlays_router)
 
 # In production the built frontend is served from the same server.
 if config.FRONTEND_DIST.exists():
