@@ -1,0 +1,13 @@
+{
+  "name": "spherex-blink",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Blink through SPHEREx sky images over time (NASA Space Apps: Planet X and SPHEREx)",
+  "scripts": {
+    "setup": "node scripts/run.mjs setup",
+    "dev": "node scripts/run.mjs dev",
+    "build": "node scripts/run.mjs build",
+    "start": "node scripts/run.mjs start",
+    "test": "node scripts/run.mjs test"
+  }
+}
