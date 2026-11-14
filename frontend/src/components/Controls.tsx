@@ -1,6 +1,7 @@
 // Top controls: where to look (search box, test targets) and how (band, field of view).
 import { useEffect, useState } from "react";
-import { fetchTargets, resolveQuery, type BandInfo, type Target } from "../api/client";
+import { fetchTargets, type BandInfo, type Target } from "../api/client";
+import { readSearchNote, rememberSearchNote, smartResolve } from "../ai/search";
 import { type ViewState } from "../state/urlState";
 import FovPicker from "./FovPicker";
 import Info from "../glossary/Info";
@@ -15,6 +16,10 @@ export default function Controls({ state, bands, onChange }: Props) {
   const [targets, setTargets] = useState<Target[]>([]);
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  // "Why we picked this" from a plain-English search (also from the homepage).
+  const [why, setWhy] = useState<string | null>(() => readSearchNote(state.ra, state.dec));
+  useEffect(() => setWhy(readSearchNote(state.ra, state.dec)), [state.ra, state.dec]);
 
   useEffect(() => {
     fetchTargets().then(setTargets).catch(() => setTargets([]));
@@ -27,27 +32,32 @@ export default function Controls({ state, bands, onChange }: Props) {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
+    setBusy(true);
     try {
-      const pos = await resolveQuery(query);
+      const pos = await smartResolve(query);
       setError(null);
-      onChange({ ra: pos.ra, dec: pos.dec });
+      rememberSearchNote(pos);
+      setWhy(pos.why ?? null);
+      onChange(pos.band ? { ra: pos.ra, dec: pos.dec, band: pos.band } : { ra: pos.ra, dec: pos.dec });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not read that position");
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
     <div className="controls">
       <form onSubmit={submit} className="search">
-        <label htmlFor="coords">RA / Dec</label><Info term="coordinates" />
+        <label htmlFor="coords">Search</label><Info term="coordinates" />
         <input
           id="coords"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="133.7951 -7.2451  or  08h55m10.8s -07d14m42s"
+          placeholder="133.7951 -7.2451, Barnard's Star, or a nearby brown dwarf"
           spellCheck={false}
         />
-        <button type="submit" className="primary">Go</button>
+        <button type="submit" className="primary" disabled={busy}>{busy ? "…" : "Go"}</button>
       </form>
 
       <label>
@@ -84,6 +94,7 @@ export default function Controls({ state, bands, onChange }: Props) {
 
       {error && <p className="error" role="alert">{error}</p>}
       {current && <p className="note">{current.note}</p>}
+      {!current && why && <p className="note">{why}</p>}
     </div>
   );
 }

@@ -14,6 +14,9 @@ send CORS headers and browsers block direct calls from other sites.
 
 Optional: set `VITE_SENTRY_DSN` at build time to report browser errors to Sentry.
 
+Optional, Vercel only: set `ANTHROPIC_API_KEY` to switch on the Claude features
+(explain, plain-English search, mover notes). See [CLAUDE_SETUP.md](CLAUDE_SETUP.md).
+
 ## Render, step by step
 
 Render hosts static sites for free. Whoever owns the GitHub repo (or has
