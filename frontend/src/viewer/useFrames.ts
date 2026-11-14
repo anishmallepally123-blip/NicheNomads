@@ -1,6 +1,7 @@
 // Loads the list of exposures for a view, then downloads their pictures a few
 // at a time. Frames become playable as soon as they arrive.
 import { useEffect, useState } from "react";
+import type { Plane } from "../state/urlState";
 import { fetchFrames, loadFrameImage, type FrameList, type LoadedFrame, type View } from "../api/client";
 
 const PARALLEL = 6;
@@ -17,7 +18,7 @@ export interface FramesState {
 
 const EMPTY: FramesState = { list: null, frames: [], loaded: 0, total: 0, loading: true, error: null };
 
-export function useFrames(view: View, band: number, size: number, reloadKey: number): FramesState {
+export function useFrames(view: View, band: number, size: number, reloadKey: number, plane: Plane = "sky"): FramesState {
   const [state, setState] = useState<FramesState>(EMPTY);
 
   useEffect(() => {
@@ -33,7 +34,7 @@ export function useFrames(view: View, band: number, size: number, reloadKey: num
         for (let info = queue.shift(); info; info = queue.shift()) {
           let frame: LoadedFrame | null = null;
           try {
-            frame = await loadFrameImage(info, view, size, abort.signal);
+            frame = await loadFrameImage(info, view, size, abort.signal, plane);
           } catch (err) {
             if (abort.signal.aborted) return;
             console.warn(err);
@@ -57,7 +58,7 @@ export function useFrames(view: View, band: number, size: number, reloadKey: num
     });
 
     return () => abort.abort();
-  }, [view.ra, view.dec, view.fov, band, size, reloadKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [view.ra, view.dec, view.fov, band, size, reloadKey, plane]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return state;
 }

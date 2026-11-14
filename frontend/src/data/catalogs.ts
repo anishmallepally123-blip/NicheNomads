@@ -196,6 +196,66 @@ export async function coneSearch(
   return result;
 }
 
+// SPLICES: the SPHEREx Target List of Ice Sources (stars seen through icy
+// dust). Positions come from 2MASS/WISE; motions are tiny, so none are used.
+const SPLICES_COLUMNS = "designation,ra,dec,w2,name,av,mc,class_1";
+
+export async function splicesSearch(ra: number, dec: number, fov: number, signal?: AbortSignal): Promise<CatalogResult> {
+  const radiusArcsec = Math.round((fov / Math.SQRT2 + 0.2) * 600) / 10;
+  const cacheKey = `splices/${ra.toFixed(5)},${dec.toFixed(5)}/${radiusArcsec}`;
+  const hit = cache.get(cacheKey);
+  if (hit && Date.now() - hit.at < TTL_MS) return hit.result;
+  const params = new URLSearchParams({
+    catalog: "splices",
+    spatial: "cone",
+    objstr: `${ra.toFixed(6)} ${dec >= 0 ? "+" : ""}${dec.toFixed(6)}`,
+    radius: String(radiusArcsec),
+    outfmt: "1",
+    selcols: SPLICES_COLUMNS,
+  });
+  const res = await fetch(`${IRSA_BASE}/cgi-bin/Gator/nph-query?${params}`, { signal });
+  const text = await res.text();
+  if (!res.ok || (text.slice(0, 500).includes("[struct stat=") && text.slice(0, 500).includes("ERROR"))) {
+    if (hit) return hit.result;
+    throw new Error(`SPLICES search failed${res.ok ? "" : ` (${res.status})`}`);
+  }
+  const sources: CatalogSource[] = parseIpac(text)
+    .map((r) => {
+      const av = num(r.av);
+      const bits = [
+        r.mc && r.mc !== "null" ? `In the ${r.mc} cloud.` : "",
+        av !== null ? `Dust in front dims it by about ${av.toFixed(0)} magnitudes of visible light.` : "",
+        r.class_1 && r.class_1 !== "null" && r.class_1.startsWith("YSO") ? "A young star still wrapped in its birth cloud." : "",
+      ].filter(Boolean);
+      return {
+        id: `SPLICES ${r.designation}`,
+        name: r.name && r.name !== "null" ? r.name : undefined,
+        ra: Number(r.ra),
+        dec: Number(r.dec),
+        pmra: null,
+        pmdec: null,
+        pm_ok: false,
+        mag: num(r.w2),
+        note: ["SPHEREx will measure the ices this star's light passes through.", ...bits].join(" "),
+      };
+    })
+    .sort((a, b) => (a.mag ?? 99) - (b.mag ?? 99));
+  const result: CatalogResult = {
+    catalog: "ices",
+    label: "SPLICES ice sources",
+    reference: "SPHEREx Target List of Ice Sources, via IRSA",
+    epoch_mjd: null,
+    mag_label: "W2",
+    radius_arcmin: radiusArcsec / 60,
+    mag_limit: null,
+    total: sources.length,
+    truncated: sources.length > MAX_SOURCES,
+    sources: sources.slice(0, MAX_SOURCES),
+  };
+  cache.set(cacheKey, { at: Date.now(), result });
+  return result;
+}
+
 /** Hand-made fast movers that could be in the view at any time in the past or
  *  next few decades (they move up to ~10 arcsec per year). */
 export function knownMovers(ra: number, dec: number, fov: number, spanYears = 30): CatalogResult {

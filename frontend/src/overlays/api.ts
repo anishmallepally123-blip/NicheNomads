@@ -1,8 +1,8 @@
 // Types and data calls for the catalogue overlays (queried from the browser).
 
-import { coneSearch, knownMovers } from "../data/catalogs";
+import { coneSearch, knownMovers, splicesSearch } from "../data/catalogs";
 
-export type LayerKey = "gaia" | "wise" | "movers";
+export type LayerKey = "gaia" | "wise" | "ices" | "movers";
 
 export interface CatalogSource {
   id: string;
@@ -44,5 +44,6 @@ export async function fetchCatalog(
   signal?: AbortSignal,
 ): Promise<CatalogResult> {
   if (key === "movers") return knownMovers(ra, dec, fov);
+  if (key === "ices") return splicesSearch(ra, dec, fov, signal);
   return coneSearch(key, ra, dec, fov, signal);
 }

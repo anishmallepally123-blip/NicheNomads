@@ -2,10 +2,18 @@
 // with other surveys (WISE, 2MASS, DSS) to compare against. The library is
 // about 2 MB, so it is only downloaded when the panel is opened.
 import { useEffect, useRef, useState } from "react";
+import { IRSA_BASE } from "../data/irsa";
 
 const ALADIN_URL = "https://cdn.jsdelivr.net/npm/aladin-lite@3.8.2/dist/aladin.js";
 
+// IRSA's all-sky SPHEREx DR1 map. It is a 102-colour cube; Aladin Lite shows
+// its first colour. IRSA sends no CORS headers, so it goes through our proxy.
+const SPHEREX_HIPS = "/data/hips/SPHEREx/spherex_allsky_cube";
+const spherexHips = () =>
+  IRSA_BASE.startsWith("http") ? IRSA_BASE + SPHEREX_HIPS : window.location.origin + IRSA_BASE + SPHEREX_HIPS;
+
 const SURVEYS = [
+  { id: "spherex", label: "SPHEREx DR1 all-sky map (0.75 µm)" },
   { id: "CDS/P/allWISE/color", label: "WISE (infrared colour)" },
   { id: "CDS/P/2MASS/color", label: "2MASS (near infrared)" },
   { id: "CDS/P/DSS2/color", label: "DSS (visible, 1950s to 1990s)" },
@@ -38,14 +46,19 @@ function loadAladin(): Promise<AladinLib> {
   return libPromise;
 }
 
-export function aladinLink(ra: number, dec: number, fov: number, survey = SURVEYS[0].id) {
+const DEFAULT_SURVEY = "CDS/P/allWISE/color";
+/** Survey id or HiPS address that Aladin understands. */
+const hipsFor = (id: string, local = true) =>
+  id === "spherex" ? (local ? spherexHips() : `https://irsa.ipac.caltech.edu${SPHEREX_HIPS}`) : id;
+
+export function aladinLink(ra: number, dec: number, fov: number, survey = DEFAULT_SURVEY) {
   const target = encodeURIComponent(`${ra.toFixed(6)} ${dec >= 0 ? "+" : ""}${dec.toFixed(6)}`);
-  return `https://aladin.cds.unistra.fr/AladinLite/?target=${target}&fov=${(fov / 60).toFixed(4)}&survey=${encodeURIComponent(survey)}`;
+  return `https://aladin.cds.unistra.fr/AladinLite/?target=${target}&fov=${(fov / 60).toFixed(4)}&survey=${encodeURIComponent(hipsFor(survey, false))}`;
 }
 
 export default function AladinPanel({ ra, dec, fov }: Props) {
   const [open, setOpen] = useState(false);
-  const [survey, setSurvey] = useState(SURVEYS[0].id);
+  const [survey, setSurvey] = useState(DEFAULT_SURVEY);
   const [error, setError] = useState<string | null>(null);
   const divRef = useRef<HTMLDivElement>(null);
   const aladin = useRef<AladinLib>(null);
@@ -58,7 +71,7 @@ export default function AladinPanel({ ra, dec, fov }: Props) {
       .then((A) => {
         if (cancelled || !divRef.current) return;
         aladin.current = A.aladin(divRef.current, {
-          survey,
+          survey: hipsFor(survey),
           fov: fov / 60,
           target: `${ra} ${dec}`,
           cooFrame: "ICRSd",
@@ -90,7 +103,7 @@ export default function AladinPanel({ ra, dec, fov }: Props) {
   }, [ra, dec, fov]);
 
   useEffect(() => {
-    aladin.current?.setImageSurvey(survey);
+    aladin.current?.setImageSurvey(hipsFor(survey));
   }, [survey]);
 
   return (
