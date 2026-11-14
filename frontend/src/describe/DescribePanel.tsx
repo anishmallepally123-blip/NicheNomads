@@ -39,7 +39,7 @@ export default function DescribePanel({ d, onCentre }: { d: Description; onCentr
           </ul>
         </details>
       )}
-      <p className="hint">Descriptions come from the SIMBAD database (CDS, Strasbourg); the five challenge targets have hand-written notes.</p>
+      <p className="hint">Most of this comes from SIMBAD, a star database run in Strasbourg. We wrote the notes for the five challenge targets ourselves.</p>
     </section>
   );
 }

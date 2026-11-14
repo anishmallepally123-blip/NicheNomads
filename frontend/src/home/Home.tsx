@@ -79,18 +79,19 @@ export default function Home({ onGo }: Props) {
             <ellipse cx="16" cy="16" rx="13" ry="5" fill="none" stroke="currentColor" strokeWidth="1.5" transform="rotate(-25 16 16)" />
             <circle cx="16" cy="16" r="3.2" fill="currentColor" />
           </svg>
-          SPHEREx Blink
+          Niche Space Directory
         </span>
-        <span className="home-bar-note">NASA Space Apps 2026, Planet X and SPHEREx</span>
+        <span className="home-bar-note">Our entry for NASA Space Apps 2026 (Planet X and SPHEREx)</span>
         <Tour steps={HOME_STEPS} part="home" />
       </header>
 
       <main className="home-main">
         <section className="home-hero">
-          <h1>Find what moves in the infrared sky.</h1>
+          <h1>Spot what's <em>moving</em> out there.</h1>
           <p className="home-lede">
-            Give us a spot on the sky. We pull every SPHEREx picture of it and flip through them, so anything
-            drifting against the stars gives itself away.
+            SPHEREx has photographed the whole sky several times since 2025. Type a position and we line up
+            every picture of that spot and play them like a flipbook. Far away stars stay still. Something close
+            by, like a cold brown dwarf, shifts a little from one picture to the next.
           </p>
           <form className="home-search" onSubmit={submit}>
             <label htmlFor="home-coords">Sky position (RA and Dec)</label>
@@ -104,7 +105,7 @@ export default function Home({ onGo }: Props) {
                 autoComplete="off"
                 autoFocus
               />
-              <button type="submit" className="primary">Show me</button>
+              <button type="submit" className="primary">Look</button>
             </div>
             <p className="home-help">
               Degrees like <code>133.7951 -7.2451</code>, or hours like <code>08h55m10.8s -07d14m42s</code>.
@@ -112,6 +113,11 @@ export default function Home({ onGo }: Props) {
             </p>
             {error && <p className="home-error" role="alert">{error}</p>}
           </form>
+          <ol className="home-steps">
+            <li><b>1</b> Type a position or click the map.</li>
+            <li><b>2</b> Press play and let the pictures flip.</li>
+            <li><b>3</b> Look for a dot that hops while the rest sit still.</li>
+          </ol>
         </section>
 
         <figure className="home-chart">
@@ -174,7 +180,7 @@ export default function Home({ onGo }: Props) {
         </figure>
 
         <section className="home-targets" aria-labelledby="known-movers">
-          <h2 id="known-movers">Or start with one of the challenge targets</h2>
+          <h2 id="known-movers">Not sure where to look? Try one of these</h2>
           <table>
             <thead>
               <tr>
@@ -194,7 +200,7 @@ export default function Home({ onGo }: Props) {
                   <td className="home-num">{formatDec(t.dec)}</td>
                   <td>
                     <button type="button" onClick={() => onGo({ ra: t.ra, dec: t.dec, band: t.suggested_band })}>
-                      Look
+                      Open
                     </button>
                   </td>
                 </tr>
@@ -205,7 +211,7 @@ export default function Home({ onGo }: Props) {
       </main>
 
       <footer className="home-foot">
-        SPHEREx images: NASA/JPL-Caltech, served by the{" "}
+        Pictures from SPHEREx (NASA/JPL-Caltech), downloaded live from the{" "}
         <a href="https://irsa.ipac.caltech.edu/Missions/spherex.html" target="_blank" rel="noreferrer">
           NASA/IPAC Infrared Science Archive
         </a>

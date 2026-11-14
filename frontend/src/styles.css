@@ -2,28 +2,29 @@
  * shape: app screen · signature: the blink stage, the sky itself set as the one large object
  * floor: tokens only, no tracked caps, no glow, focus-visible on every control, reduced-motion fallback
  * built: the project · redesign: restyle (layout kept) · v2.0.0
+ * v2.1 (Nov 14): zinc neutrals per the Fancy UI kit, brighter amber and blue, softer corners.
  * Meanings: amber is the person (your target, the primary action, the current step);
  * cool blue is the instrument (readings, data, progress). Nothing glows. */
 :root {
-  /* Console, graphite, with the hue nudged a little toward night blue */
-  --color-paper: oklch(16% 0.012 255);
-  --color-paper-2: oklch(20.5% 0.013 255);
-  --color-paper-3: oklch(12.5% 0.01 255);
-  --color-paper-4: oklch(25% 0.014 255);
+  /* Zinc-grey base (Fancy UI style), just a touch cool */
+  --color-paper: oklch(16.5% 0.006 280);
+  --color-paper-2: oklch(21% 0.007 280);
+  --color-paper-3: oklch(13% 0.005 280);
+  --color-paper-4: oklch(26% 0.008 280);
   --color-ink: oklch(95% 0.005 250);
   --color-ink-2: oklch(85% 0.008 250);
   --color-muted: oklch(72% 0.012 250);
   --color-faint: oklch(62% 0.014 250);
-  --color-rule: oklch(30% 0.012 250);
-  --color-rule-2: oklch(42% 0.014 250);
-  --color-accent: oklch(82% 0.15 75);
-  --color-accent-hover: oklch(86% 0.13 78);
+  --color-rule: oklch(30% 0.007 280);
+  --color-rule-2: oklch(42% 0.008 280);
+  --color-accent: oklch(86% 0.17 78);
+  --color-accent-hover: oklch(90% 0.15 82);
   --color-accent-ink: oklch(18% 0.04 75);
-  --color-accent-soft: oklch(29% 0.05 75);
-  --color-cool: oklch(77% 0.12 245);
-  --color-cool-hover: oklch(85% 0.09 245);
-  --color-cool-soft: oklch(29% 0.05 245);
-  --color-ok: oklch(76% 0.15 150);
+  --color-accent-soft: oklch(31% 0.07 75);
+  --color-cool: oklch(82% 0.13 235);
+  --color-cool-hover: oklch(89% 0.1 235);
+  --color-cool-soft: oklch(31% 0.07 240);
+  --color-ok: oklch(80% 0.17 150);
   --color-warn: oklch(85% 0.13 90);
   --color-bad: oklch(72% 0.16 25);
   --color-bad-soft: oklch(26% 0.04 25);
@@ -60,9 +61,9 @@
   --space-xl: 24px;
   --space-2xl: 32px;
 
-  --radius-card: 2px;
-  --radius-pill: 2px;
-  --radius-chip: 2px;
+  --radius-card: 10px;
+  --radius-pill: 7px;
+  --radius-chip: 999px;
   --rule-hair: 1px;
   --tracking-display: -0.025em;
 
@@ -489,3 +490,13 @@ summary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 
   .app:not(.embed) .intro { display: none; }
   .app:not(.embed) .topbar { justify-content: space-between; padding-top: var(--space-sm); padding-bottom: var(--space-sm); }
 }
+
+/* ---------- v2.1 touches ---------- */
+/* Primary buttons look like a key you can press. */
+button.primary { box-shadow: inset 0 -3px 0 color-mix(in oklab, var(--color-accent) 70%, black); font-weight: 600; }
+button.primary:active:not(:disabled) { box-shadow: inset 0 -1px 0 color-mix(in oklab, var(--color-accent) 70%, black); }
+/* Side panel headings get a small amber tab so sections are easy to find. */
+aside h2 { display: flex; align-items: center; gap: var(--space-sm); }
+aside h2::before { content: ""; width: 4px; height: 14px; border-radius: 2px; background: var(--color-accent); flex: none; }
+.new-search { border-radius: var(--radius-pill); }
+.app:not(.embed) .topbar { box-shadow: inset 0 -2px 0 color-mix(in oklab, var(--color-accent) 35%, transparent); }

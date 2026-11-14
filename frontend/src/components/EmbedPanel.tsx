@@ -14,7 +14,7 @@ export default function EmbedPanel({ state }: Props) {
   const embedUrl = absoluteUrl(state, { embed: true, controls: showPlayer });
   const snippet =
     `<iframe src="${embedUrl}" width="560" height="${showPlayer ? 680 : 560}" ` +
-    `style="border:0" title="SPHEREx Blink" loading="lazy" allow="fullscreen"></iframe>`;
+    `style="border:0" title="Niche Space Directory" loading="lazy" allow="fullscreen"></iframe>`;
 
   const copy = async (what: string, text: string) => {
     try {

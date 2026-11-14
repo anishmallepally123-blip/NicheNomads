@@ -23,7 +23,7 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, St
     return (
       <div className="crash" role="alert">
         <h1>Something went wrong</h1>
-        <p>The viewer hit an unexpected problem. Reloading the page usually fixes it.</p>
+        <p>Something broke in the viewer. Reloading the page usually fixes it.</p>
         <button className="primary" onClick={() => window.location.reload()}>Reload</button>
       </div>
     );

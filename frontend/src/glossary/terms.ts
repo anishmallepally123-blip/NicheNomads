@@ -22,7 +22,7 @@ export const TERMS = {
   },
   fov: {
     word: "Field of view",
-    text: "How big a patch of sky the picture shows. A smaller field zooms in on detail; a bigger one shows more of the surroundings.",
+    text: "How big a patch of sky the picture shows. A smaller field zooms in on detail, and a bigger one shows more of the surroundings.",
   },
   arcmin: {
     word: "Arcminute (′)",
@@ -38,11 +38,11 @@ export const TERMS = {
   },
   wavelength: {
     word: "Wavelength",
-    text: "Light travels as waves, and the distance between wave peaks sets its colour. Our eyes see wavelengths from about 0.4 to 0.7 microns; SPHEREx sees longer ones that are invisible to us.",
+    text: "Light travels as waves, and the distance between wave peaks sets its colour. Our eyes see wavelengths from about 0.4 to 0.7 microns. SPHEREx sees longer ones that are invisible to us.",
   },
   micron: {
     word: "Micron (µm)",
-    text: "A millionth of a metre. It is the unit used for infrared wavelengths; SPHEREx sees from 0.75 to 5 microns.",
+    text: "A millionth of a metre. It is the unit used for infrared wavelengths. SPHEREx sees from 0.75 to 5 microns.",
   },
   channel: {
     word: "Channel",
@@ -86,7 +86,7 @@ export const TERMS = {
   },
   spectrum: {
     word: "Spectrum",
-    text: "How bright something is at each colour (wavelength). It works like a fingerprint: it can tell you how hot an object is and what it is made of.",
+    text: "How bright something is at each colour (wavelength). It can tell you how hot an object is and what it is made of.",
   },
   catalogue: {
     word: "Catalogue overlay",
@@ -118,7 +118,7 @@ export const TERMS = {
   },
   brownDwarf: {
     word: "Brown dwarf",
-    text: "An object bigger than a planet but too small to shine like a star; sometimes called a failed star. It slowly cools, glowing faintly in infrared.",
+    text: "An object bigger than a planet but too small to shine like a star. People sometimes call it a failed star. It slowly cools, glowing faintly in infrared.",
   },
   redDwarf: {
     word: "Red dwarf",

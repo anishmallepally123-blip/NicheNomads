@@ -13,7 +13,7 @@ export default function GlossaryPanel() {
     <details className="glossary" id="glossary">
       <summary>
         <h2>Words explained</h2>
-        <span className="muted">New to astronomy? Every term on this page in plain English.</span>
+        <span className="muted">Words on this site you might not know yet.</span>
       </summary>
       <input type="search" aria-label="Search the glossary" placeholder="Search, e.g. infrared" value={q} onChange={(e) => setQ(e.target.value)} />
       <dl>
