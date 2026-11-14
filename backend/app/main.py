@@ -9,7 +9,10 @@ from fastapi.staticfiles import StaticFiles
 
 from . import config, data_access
 from .api import router
+from .monitoring import init_monitoring
 from .overlays_api import router as overlays_router
+
+init_monitoring()
 
 
 @asynccontextmanager

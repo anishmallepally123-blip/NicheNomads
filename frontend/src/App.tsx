@@ -4,12 +4,13 @@ import EmbedPanel from "./components/EmbedPanel";
 import ImageOpsPanel from "./components/ImageOpsPanel";
 import SkyNavigator from "./components/SkyNavigator";
 import StatusBar from "./components/StatusBar";
+import ViewerOverlay from "./components/ViewerOverlay";
 import BlinkCanvas from "./viewer/BlinkCanvas";
 import PlayerControls from "./viewer/PlayerControls";
 import { useFrames } from "./viewer/useFrames";
 import { useImageOps } from "./viewer/useImageOps";
 import { usePlayer } from "./viewer/usePlayer";
-import { absoluteUrl, useUrlState } from "./state/urlState";
+import { absoluteUrl, DEFAULT_STATE, useUrlState } from "./state/urlState";
 import { useEmbedBridge } from "./state/embedBridge";
 import { fetchTargets, type Target } from "./api/client";
 import { formatDec, formatFov, formatRa } from "./lib/sky";
@@ -82,10 +83,22 @@ export default function App() {
 
   return (
     <div className={state.embed ? "app embed" : "app"}>
+      <a className="skip-link" href="#viewer">Skip to the viewer</a>
       {!state.embed && (
-        <header>
-          <h1>SPHEREx Blink</h1>
-          <p>
+        <header className="topbar">
+          <div className="brand">
+            <svg className="logo" viewBox="0 0 32 32" aria-hidden="true">
+              <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.35" />
+              <ellipse cx="16" cy="16" rx="13" ry="5" fill="none" stroke="currentColor" strokeWidth="1.5" transform="rotate(-25 16 16)" />
+              <circle cx="16" cy="16" r="3.2" fill="currentColor" />
+              <circle cx="26.5" cy="11" r="1.8" className="logo-mover" />
+            </svg>
+            <div>
+              <h1>SPHEREx Blink</h1>
+              <p className="tagline">Planet X hunter · NASA Space Apps 2026</p>
+            </div>
+          </div>
+          <p className="intro">
             Flip through NASA SPHEREx infrared images of one patch of sky over time. Stars stay put.
             Anything that moves between frames could be a nearby object.
           </p>
@@ -95,31 +108,40 @@ export default function App() {
       {!state.embed && <Controls state={state} bands={frames.list?.bands ?? []} onChange={update} />}
 
       <main>
-        <section className="viewer">
-          <BlinkCanvas
-            frame={current}
-            image={ops.image}
-            view={view}
-            invert={state.invert}
-            showMarker={state.marker}
-            zoom={state.zoom}
-            onZoomChange={(zoom) => update({ zoom: +zoom.toFixed(2) })}
-            onRecenter={(ra, dec) => update({ ra, dec })}
-            onLoadView={(ra, dec, fov) => update({ ra, dec, fov })}
-            maxSide={maxSide}
-            drawExtra={overlayCanvas.draw}
-            onPick={overlayCanvas.pick}
-          >
-            {overlays.selected && (
-              <SourceCard
-                selection={overlays.selected}
-                layer={overlays.results[overlays.selected.layer]}
-                mjd={frameMjd}
-                onClose={() => overlays.setSelected(null)}
-                onCentre={(ra, dec) => update({ ra, dec })}
-              />
-            )}
-          </BlinkCanvas>
+        <section className="viewer" id="viewer" aria-label="Blink viewer">
+          <div className="stage">
+            <BlinkCanvas
+              frame={current}
+              image={ops.image}
+              view={view}
+              invert={state.invert}
+              showMarker={state.marker}
+              zoom={state.zoom}
+              onZoomChange={(zoom) => update({ zoom: +zoom.toFixed(2) })}
+              onRecenter={(ra, dec) => update({ ra, dec })}
+              onLoadView={(ra, dec, fov) => update({ ra, dec, fov })}
+              maxSide={maxSide}
+              drawExtra={overlayCanvas.draw}
+              onPick={overlayCanvas.pick}
+            >
+              {overlays.selected && (
+                <SourceCard
+                  selection={overlays.selected}
+                  layer={overlays.results[overlays.selected.layer]}
+                  mjd={frameMjd}
+                  onClose={() => overlays.setSelected(null)}
+                  onCentre={(ra, dec) => update({ ra, dec })}
+                />
+              )}
+            </BlinkCanvas>
+            <ViewerOverlay
+              frames={frames}
+              band={state.band}
+              onRetry={() => setReloadKey((k) => k + 1)}
+              onBand={(band) => update({ band })}
+              onExample={() => update({ ra: DEFAULT_STATE.ra, dec: DEFAULT_STATE.dec, band: DEFAULT_STATE.band })}
+            />
+          </div>
           {ops.label && <p className="ops-banner">{ops.label}</p>}
           {(!state.embed || state.controls) && <PlayerControls player={player} frames={frames.frames} />}
           {state.embed && (
@@ -174,6 +196,16 @@ export default function App() {
       </main>
 
       <StatusBar frames={frames} onRefresh={() => setReloadKey((k) => k + 1)} />
+
+      {!state.embed && (
+        <footer className="credits">
+          SPHEREx data: NASA/JPL-Caltech, served by the{" "}
+          <a href="https://irsa.ipac.caltech.edu/Missions/spherex.html" target="_blank" rel="noreferrer">
+            NASA/IPAC Infrared Science Archive
+          </a>
+          . Built for the NASA Space Apps Challenge: Planet X and SPHEREx.
+        </footer>
+      )}
     </div>
   );
 }

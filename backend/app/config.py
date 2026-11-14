@@ -36,3 +36,9 @@ MAX_IMAGE_SIZE = 768
 FRONTEND_DIST = REPO_DIR / "frontend" / "dist"
 
 CORS_ORIGINS = os.getenv("SPHEREX_CORS_ORIGINS", "*").split(",")
+
+# Error reporting (optional). Leave SENTRY_DSN empty to turn it off.
+SENTRY_DSN = os.getenv("SENTRY_DSN", "").strip()
+SENTRY_ENVIRONMENT = os.getenv("SENTRY_ENVIRONMENT", "production")
+SENTRY_TRACES_SAMPLE_RATE = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0"))
+APP_VERSION = os.getenv("APP_VERSION", "dev")

@@ -1,0 +1,10 @@
+# Netlify hosts the website only. The Python API must run elsewhere
+# (see docs/DEPLOY.md). Set VITE_API_BASE in Site settings > Environment
+# variables to the API's address before building.
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
