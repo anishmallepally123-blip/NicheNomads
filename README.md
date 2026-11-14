@@ -1,4 +1,4 @@
-# SPHEREx Blink
+# Niche Space Directory
 
 A web tool for the NASA Space Apps challenge **Planet X and SPHEREx**.
 

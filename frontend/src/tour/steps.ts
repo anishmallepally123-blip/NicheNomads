@@ -8,13 +8,13 @@ export interface Step {
 export const HOME_STEPS: Step[] = [
   {
     target: ".home-search",
-    title: "Start with a spot on the sky",
+    title: "Pick a spot",
     body: "Type a sky position here, as two numbers: RA then Dec, in degrees (like 133.7951 -7.2451). Don't know one? Try the example under the box.",
   },
   {
     target: ".home-search button.primary",
     title: "Press Go",
-    body: "We fetch every SPHEREx picture of that spot. The tour picks up again in the viewer.",
+    body: "We grab every SPHEREx picture of that spot. The tour carries on once the viewer opens.",
   },
 ];
 
@@ -26,8 +26,8 @@ export const VIEWER_STEPS: Step[] = [
   },
   {
     target: ".player",
-    title: "Blink through time",
-    body: "Play flips through the pictures in date order. Stars stay put. Anything that jumps between frames is worth a closer look. Drag the slider to step by hand.",
+    title: "Flip through the dates",
+    body: "Play flips through the pictures in date order. Stars stay put. If something jumps between frames, look closer. Drag the slider to step by hand.",
   },
   {
     target: ".controls .search",
@@ -67,7 +67,7 @@ export const VIEWER_STEPS: Step[] = [
   {
     target: "#glossary",
     title: "Stuck on a word?",
-    body: "Every small ? button explains a term in plain English. The full list lives here.",
+    body: "Each little ? button explains a word. The full list is down here.",
   },
   {
     target: ".tour-retake",
