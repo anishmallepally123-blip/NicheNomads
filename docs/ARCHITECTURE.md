@@ -90,20 +90,34 @@ are limited to 4 at a time and retried with a short wait.
 
 ## Where each next piece plugs in
 
-### 1. Data and bands (102 bands, co-add, spectra, flags)
+### 1. Data and bands (102 bands, co-add, spectra, flags) — done
 
-- Wavelength per frame is already returned (`X-Wavelength-Um`). To filter or
-  group by wavelength, add the filter in `useFrames.ts` or add a
-  `wave_min/wave_max` parameter to `/api/frames/{id}/image`.
-- Co-adds: add a function next to `align_cutout()` in `cutouts.py` that takes
-  several `AlignedImage`s (they share one grid) and averages them, then a new
-  route such as `/api/coadd` in `api.py`.
-- Spectra: for each frame take the pixel value at the centre plus its
-  wavelength. A `/api/spectrum?ra&dec` route can loop over all six bands.
-- Flags: `align_cutout()` already opens the `FLAGS` extension and reports the
-  flagged fraction. Mask or return per-bit information there. The bright
-  square and black blobs in the pictures are flagged pixels that are not
-  masked yet.
+| File / route | What it does |
+| --- | --- |
+| `quality.py` | Reads flag names from the FLAGS header. "Bad" = the conservative list from the IRSA tutorials (TRANSIENT, OVERFLOW, SUR_ERROR, NONFUNC, HOT, COLD, PERSIST, HALO, BLOOM, ...). SOURCE (set on 40-50 % of pixels, it just means "a star is here") and OUTLIER are *not* bad. |
+| `cutouts.align_cutout()` | Bad pixels are removed before resampling. `data` has them filled from neighbours (display only, this fixes the white squares and black blobs), `science` keeps them as NaN, `filled` says which is which. `format=fits` downloads `science`. |
+| `cutouts.coadd()`, `GET /api/coadd?ra&dec&fov&band[&channel]` | Weighted mean of all aligned frames of a detector or one of its 17 channels. One weight per frame (1/noise², so bright stars are not biased), flagged pixels left out, per-pixel outlier rejection that never clips real stars. Values stay in MJy/sr. `format=fits` adds an NFRAMES map. |
+| `bands.py`, `GET /api/bands` | 6 bands × 17 channels = 102, equal-R channels in log wavelength. |
+| `spectra.py`, `GET /api/spectrum?ra&dec` | Forced PSF photometry in every exposure with the mission ePSF, background fitted, flagged pixels excluded, converted to µJy with the pixel solid angle. Points plus a 102-channel binned spectrum. Saturated sources are reported as such instead of measured. |
+| `data_access.fetch_stamp()` | Reads only a 17 × 17 pixel box per exposure from NASA's public S3 bucket (range requests). About 250 exposures take 30-90 s the first time, then cached. Falls back to a small IRSA cutout. |
+| `GET /api/frames/{id}/meta` | Wavelength, channel, flags at the target pixel, flag counts, header checks. |
+| `frontend/src/data/` | The "This frame", "Deep image" and "Spectrum" sections of the side panel. |
+
+Checks done on real data: a 2MASS star next to WISE 0855 (J 15.4) comes out within
+2-9 % of its 2MASS J, H, Ks fluxes. WISE 0855 itself (now about 1.6 arcmin west of
+the challenge coordinates, at RA 133.7590, Dec -7.2419) shows the expected
+brown-dwarf shape: faint near 1-3.5 µm and bright at 4.2-5 µm. Barnard's Star is
+saturated in nearly every exposure, so its spectrum is refused with that reason.
+
+Wavelengths: the foundation read the per-pixel wavelength with the sky
+distortion (SIP) applied to the wavelength table, which shifted it by about
+0.15 %. `cutouts.alt_wcs()` now turns SIP off for the alternate WCSs, as the
+IRSA tutorials do.
+
+Known limits: the position is fixed for all exposures, so a fast mover
+(WISE 0855 moves ~1.3 pixels over the year) loses a little flux in the
+earliest and latest frames. Channel edges are computed, not read from the
+mission table, so a frame right on an edge can land in the neighbouring channel.
 
 ### 2. Overlays (Gaia DR3, WISE, Aladin) — done
 

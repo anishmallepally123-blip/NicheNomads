@@ -20,6 +20,10 @@ SEARCH_TTL_SECONDS = int(os.getenv("SPHEREX_SEARCH_TTL", "3600"))
 # How many cutouts we download from IRSA at the same time.
 MAX_PARALLEL_DOWNLOADS = int(os.getenv("SPHEREX_MAX_PARALLEL", "4"))
 
+# Partial reads from NASA's public S3 bucket (used for spectra). S3 copes
+# with many parallel requests, unlike the IRSA cutout service.
+MAX_PARALLEL_S3 = int(os.getenv("SPHEREX_MAX_PARALLEL_S3", "16"))
+
 # IRSA sometimes answers "server busy". How many times to try again.
 DOWNLOAD_RETRIES = int(os.getenv("SPHEREX_DOWNLOAD_RETRIES", "6"))
 

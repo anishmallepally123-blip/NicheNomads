@@ -27,7 +27,9 @@ app.add_middleware(
     allow_origins=config.CORS_ORIGINS,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
-    expose_headers=["X-Wavelength-Um", "X-Bandwidth-Um", "X-Coverage", "X-Flagged-Fraction"],
+    expose_headers=["X-Wavelength-Um", "X-Bandwidth-Um", "X-Coverage", "X-Flagged-Fraction",
+                    "X-Filled-Fraction", "X-Frames-Used", "X-Wave-Min-Um", "X-Wave-Max-Um",
+                    "X-Clipped-Fraction"],
 )
 app.include_router(router)
 app.include_router(overlays_router)

@@ -14,6 +14,7 @@ import { absoluteUrl, DEFAULT_STATE, useUrlState } from "./state/urlState";
 import { useEmbedBridge } from "./state/embedBridge";
 import { fetchTargets, type Target } from "./api/client";
 import { formatDec, formatFov, formatRa } from "./lib/sky";
+import DataPanel from "./data/DataPanel";
 import { AladinPanel, OverlayPanel, SourceCard, mjdNow, useOverlayCanvas, useOverlays } from "./overlays";
 
 const IMAGE_SIZE = 384; // pixels requested from the backend per frame
@@ -183,6 +184,8 @@ export default function App() {
 
           <h2>Add / subtract images</h2>
           <ImageOpsPanel state={state} frames={frames.frames} current={current} label={ops.label} onChange={update} />
+
+          <DataPanel view={view} band={state.band} frame={current} playing={player.playing} />
 
           <p className="hint">
             Each SPHEREx exposure sees a slightly different wavelength at this spot, so brightness can
