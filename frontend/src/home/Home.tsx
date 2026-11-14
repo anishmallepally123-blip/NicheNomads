@@ -4,7 +4,8 @@
 import Tour from "../tour/Tour";
 import { HOME_STEPS } from "../tour/steps";
 import { useEffect, useMemo, useState } from "react";
-import { fetchTargets, resolveQuery, type Target } from "../api/client";
+import { fetchTargets, type Target } from "../api/client";
+import { rememberSearchNote, smartResolve } from "../ai/search";
 import { eclipticToEquatorial, formatDec, formatRa, galacticToEquatorial } from "../lib/sky";
 import "./home.css";
 import AccountButton from "../saved/AccountButton";
@@ -35,6 +36,7 @@ export default function Home({ onGo }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [targets, setTargets] = useState<Target[]>([]);
   const [hover, setHover] = useState<{ ra: number; dec: number } | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     fetchTargets().then(setTargets).catch(() => setTargets([]));
@@ -54,13 +56,16 @@ export default function Home({ onGo }: Props) {
       setError("Type a position first, for example 133.7951 -7.2451");
       return;
     }
+    setBusy(true);
     try {
-      const pos = await resolveQuery(query);
-      const known = targets.find((t) => Math.abs(t.ra - pos.ra) < 1e-4 && Math.abs(t.dec - pos.dec) < 1e-4);
+      const pos = await smartResolve(query);
       setError(null);
-      onGo({ ra: pos.ra, dec: pos.dec, band: known?.suggested_band });
+      rememberSearchNote(pos);
+      onGo({ ra: pos.ra, dec: pos.dec, band: pos.band });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not read that position");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -96,22 +101,23 @@ export default function Home({ onGo }: Props) {
             by, like a cold brown dwarf, shifts a little from one picture to the next.
           </p>
           <form className="home-search" onSubmit={submit}>
-            <label htmlFor="home-coords">Sky position (RA and Dec)</label>
+            <label htmlFor="home-coords">Where should we look?</label>
             <div className="home-search-row">
               <input
                 id="home-coords"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="133.7951 -7.2451"
+                placeholder="133.7951 -7.2451  or  a cold brown dwarf near Orion"
                 spellCheck={false}
                 autoComplete="off"
                 autoFocus
               />
-              <button type="submit" className="primary">Look</button>
+              <button type="submit" className="primary" disabled={busy}>{busy ? "Looking…" : "Look"}</button>
             </div>
             <p className="home-help">
               Degrees like <code>133.7951 -7.2451</code>, or hours like <code>08h55m10.8s -07d14m42s</code>.
-              A name like <code>Barnard's Star</code> works too, or click anywhere on the map.
+              A name like <code>Barnard's Star</code> works too. You can also just describe it, like{" "}
+              <code>the fastest star in the sky</code>, or click anywhere on the map.
             </p>
             {error && <p className="home-error" role="alert">{error}</p>}
           </form>

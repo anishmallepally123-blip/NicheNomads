@@ -15,7 +15,7 @@ export interface ImageOpsResult {
 
 // Pixels are read once per decoded picture and dropped with it.
 const pixelCache = new WeakMap<object, Pixels>();
-function pixelsOf(frame: LoadedFrame): Pixels {
+export function pixelsOf(frame: LoadedFrame): Pixels {
   let p = pixelCache.get(frame.image);
   if (!p) {
     p = readPixels(frame.image);

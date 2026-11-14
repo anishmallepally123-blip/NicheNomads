@@ -135,3 +135,24 @@ export function summarise(o: SimbadObject): string {
 export function formatSep(arcsec: number): string {
   return arcsec < 60 ? `${Math.round(arcsec)}″` : `${(arcsec / 60).toFixed(1)}′`;
 }
+
+/** Look an object up by name. Tries the name as typed and with SIMBAD's
+ *  "NAME " prefix for common names. Returns null when SIMBAD doesn't know it. */
+export async function lookupName(
+  name: string,
+  signal?: AbortSignal,
+): Promise<{ name: string; otype: string; ra: number; dec: number; pmra: number | null; pmdec: number | null } | null> {
+  const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
+  const ids = [name, `NAME ${name}`].map(q).join(", ");
+  const adql =
+    `SELECT TOP 1 main_id, otype, ra, dec, pmra, pmdec FROM basic JOIN ident ON ident.oidref = basic.oid ` +
+    `WHERE ident.id IN (${ids})`;
+  const body = new URLSearchParams({ request: "doQuery", lang: "adql", format: "json", query: adql });
+  const res = await fetch(`${SIMBAD_BASE}/simbad/sim-tap/sync`, { method: "POST", body, signal });
+  if (!res.ok) throw new Error(`SIMBAD answered ${res.status}`);
+  const json = (await res.json()) as { data: unknown[][] };
+  const row = json.data?.[0];
+  if (!row || !Number.isFinite(Number(row[2]))) return null;
+  const num = (v: unknown) => (v === null || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
+  return { name: cleanName(String(row[0])), otype: String(row[1] ?? "").trim(), ra: Number(row[2]), dec: Number(row[3]), pmra: num(row[4]), pmdec: num(row[5]) };
+}

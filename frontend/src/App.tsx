@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Controls from "./components/Controls";
 import EmbedPanel from "./components/EmbedPanel";
 import ImageOpsPanel from "./components/ImageOpsPanel";
@@ -24,6 +24,8 @@ import Info from "./glossary/Info";
 import GlossaryPanel from "./glossary/GlossaryPanel";
 import Tour from "./tour/Tour";
 import { VIEWER_STEPS } from "./tour/steps";
+import ExplainButton from "./ai/ExplainButton";
+import MoverPanel, { useMovers } from "./movers/MoverPanel";
 
 const IMAGE_SIZE = 384; // pixels requested from the backend per frame
 
@@ -47,6 +49,16 @@ export default function App() {
   const frameMjd = useMemo(() => current?.mjd ?? mjdNow(), [current]);
   const overlayCanvas = useOverlayCanvas(overlays, view, frameMjd);
   const description = useDescription(state.ra, state.dec, state.fov);
+  const movers = useMovers(frames.frames, view, state.band, overlays.results, description.curated?.name ?? description.highlight?.name ?? null);
+  const { draw: drawOverlays } = overlayCanvas;
+  const { draw: drawMovers } = movers;
+  const drawExtra = useCallback(
+    (ctx: CanvasRenderingContext2D, geom: Parameters<typeof drawMovers>[1]) => {
+      drawOverlays(ctx, geom);
+      drawMovers(ctx, geom);
+    },
+    [drawOverlays, drawMovers],
+  );
 
   // Frame from the URL: keep the paused player on that exposure while frames
   // are still arriving (new ones can be inserted before it in time order).
@@ -167,7 +179,7 @@ export default function App() {
               onRecenter={(ra, dec) => update({ ra, dec })}
               onLoadView={(ra, dec, fov) => update({ ra, dec, fov })}
               maxSide={maxSide}
-              drawExtra={overlayCanvas.draw}
+              drawExtra={drawExtra}
               onPick={overlayCanvas.pick}
             >
               {overlays.selected && (
@@ -222,6 +234,10 @@ export default function App() {
           </section>
           <section className="card">
             <DescribePanel d={description} onCentre={(ra, dec) => update({ ra, dec })} />
+            <ExplainButton ra={state.ra} dec={state.dec} fov={state.fov} band={state.band} d={description} frames={frames.frames} />
+          </section>
+          <section className="card">
+            <MoverPanel movers={movers} frames={frames.frames} loading={frames.loading} onCentre={(ra, dec) => update({ ra, dec })} />
           </section>
           <section className="card">
             <h2>Add / subtract images<Info term="difference" /></h2>
