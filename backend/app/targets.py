@@ -47,17 +47,31 @@ def find_target(text: str) -> dict | None:
     return None
 
 
+def _is_number(token: str) -> bool:
+    try:
+        float(token)
+    except ValueError:
+        return False
+    return True
+
+
 def parse_coordinates(text: str) -> tuple[float, float]:
     """Turn user text into (ra_deg, dec_deg).
 
     Accepts "133.795 -7.245" (degrees), "08h55m10.8s -07d14m42s" and
-    "08:55:10.8 -07:14:42" (hours for RA when written with h or colons).
+    "08:55:10.8 -07:14:42" or "08 55 10.8 -07 14 42" (hours for RA).
     Raises ValueError when the text cannot be read.
     """
     text = text.strip().replace(",", " ")
     if not text:
         raise ValueError("Empty coordinates")
-    sexagesimal = any(ch in text for ch in "hms:")
+    tokens = text.split()
+    # "08 55 10.8 -07 14 42" (SIMBAD style) is hours/degrees too, not six numbers in degrees.
+    spaced_hms = len(tokens) == 6 and all(_is_number(t) for t in tokens)
+    sexagesimal = spaced_hms or any(ch in text for ch in "hms:")
+    if not sexagesimal and len(tokens) == 2 and all(_is_number(t) for t in tokens):
+        if not 0 <= float(tokens[0]) <= 360:
+            raise ValueError(f"RA must be between 0 and 360 degrees: {text!r}")
     unit = (u.hourangle, u.deg) if sexagesimal else (u.deg, u.deg)
     try:
         c = SkyCoord(text, unit=unit, frame="icrs")

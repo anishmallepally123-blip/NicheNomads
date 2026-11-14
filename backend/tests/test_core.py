@@ -23,6 +23,20 @@ def test_parse_coordinates_formats():
         targets.parse_coordinates("not a place")
 
 
+def test_parse_coordinates_space_separated_hms():
+    # SIMBAD prints coordinates like this; RA is in hours, not degrees.
+    ra, dec = targets.parse_coordinates("08 55 10.831 -07 14 42.53")
+    assert (ra, dec) == pytest.approx((133.795129, -7.245147), abs=1e-5)
+    ra, dec = targets.parse_coordinates("00 00 00 -00 30 00")
+    assert (ra, dec) == pytest.approx((0.0, -0.5))
+
+
+def test_parse_coordinates_rejects_ra_out_of_range():
+    for text in ("361 0", "-1 0"):
+        with pytest.raises(ValueError):
+            targets.parse_coordinates(text)
+
+
 def _rotated_cutout(tmp_path, ra, dec, angle_deg):
     """Fake SPHEREx cutout: rotated, with one star exactly at (ra, dec)."""
     n = 81
