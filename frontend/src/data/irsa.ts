@@ -167,8 +167,15 @@ const cutouts = new Map<string, Promise<Cutout>>();
 /** Download the image, flags and zodiacal-light planes of one exposure around
  *  (ra, dec). IRSA cuts the image on its side; we stop reading the answer once
  *  the planes we need have arrived. */
-export function fetchCutout(frame: Frame, ra: number, dec: number, sizeDeg: number, signal?: AbortSignal): Promise<Cutout> {
-  const key = `${frame.collection}/${frame.id}/${ra.toFixed(5)},${dec.toFixed(5)}/${sizeDeg.toFixed(4)}`;
+export function fetchCutout(
+  frame: Frame,
+  ra: number,
+  dec: number,
+  sizeDeg: number,
+  signal?: AbortSignal,
+  withPsf = false,
+): Promise<Cutout> {
+  const key = `${frame.collection}/${frame.id}/${ra.toFixed(5)},${dec.toFixed(5)}/${sizeDeg.toFixed(4)}${withPsf ? "/psf" : ""}`;
   const cached = cutouts.get(key);
   if (cached) return cached;
   const url = `${viaProxy(frame.access_url)}?center=${ra.toFixed(6)},${dec.toFixed(6)}deg&size=${sizeDeg.toFixed(5)}deg`;
@@ -177,9 +184,9 @@ export function fetchCutout(frame: Frame, ra: number, dec: number, sizeDeg: numb
       const res = await fetchRetry(url, signal);
       if (!res.ok) throw new Error(`IRSA cutout failed for ${frame.id} (${res.status})`);
       try {
-        const h = await readFitsHdus(res, ["IMAGE", "FLAGS", "ZODI"]);
+        const h = await readFitsHdus(res, ["IMAGE", "FLAGS", "VARIANCE", "ZODI", ...(withPsf ? ["EPSF"] : [])]);
         if (!h.IMAGE) throw new Error(`No image in cutout for ${frame.id}`);
-        return { image: h.IMAGE, flags: h.FLAGS, zodi: h.ZODI };
+        return { image: h.IMAGE, flags: h.FLAGS, variance: h.VARIANCE, zodi: h.ZODI, epsf: h.EPSF };
       } catch (err) {
         // "Server busy, retry later." can also come back as a short text answer
         if (signal?.aborted || attempt >= 5 || !/busy/i.test(String(err))) throw err;

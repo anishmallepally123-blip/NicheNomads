@@ -112,8 +112,14 @@ export function parseUrl(search: string): ViewState {
     if (raw === null) return fallback;
     return !["0", "false", "no", "off"].includes(raw.toLowerCase());
   };
-  const ra = parseRa(p.get("ra"));
-  const dec = parseDec(p.get("dec"));
+  let ra = parseRa(p.get("ra"));
+  let dec = parseDec(p.get("dec"));
+  // A broken position in a shared link falls back to the default view as a whole,
+  // so we never mix the default RA with someone else's Dec.
+  if (!Number.isFinite(ra) || !Number.isFinite(dec) || Math.abs(dec) > 90) {
+    ra = D.ra;
+    dec = D.dec;
+  }
   const op = p.get("op");
   const ref = p.get("ref");
   return {

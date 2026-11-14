@@ -6,6 +6,7 @@
 // stay put from frame to frame and anything that moves stands out.
 
 import type { Hdu } from "./fits";
+import { badBitmask, flagValues } from "./quality";
 import { WAVE_TABLES } from "./waveTables";
 import { SipWcs, tanDeproject } from "./wcs";
 
@@ -13,6 +14,8 @@ export interface Cutout {
   image: Hdu;
   zodi?: Hdu;
   flags?: Hdu;
+  variance?: Hdu;
+  epsf?: Hdu; // PSF grid table, only when asked for (4 MB)
 }
 
 export interface AlignedImage {
@@ -21,7 +24,54 @@ export interface AlignedImage {
   wavelength: number | null; // microns, what SPHEREx saw at the centre
   bandwidth: number | null;
   coverage: number; // fraction of the picture that has data
-  flaggedFraction: number; // fraction of source pixels with any quality flag
+  flaggedFraction: number; // fraction of source pixels with a *bad* quality flag
+  // Same grid, but NaN wherever a bad pixel contributed. `data` has those
+  // filled in from neighbours for a clean picture; anything that measures
+  // (co-adds, differences) should use `science`.
+  science: Float32Array;
+  filled: Uint8Array; // 1 where `data` was filled in
+  noise: number | null; // typical 1-sigma per source pixel, MJy/sr
+}
+
+function median(values: ArrayLike<number>): number {
+  const s = Float64Array.from(values).sort();
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+/** Fill NaN pixels from a Gaussian-weighted average of good neighbours, for
+ *  display only. Bigger holes get a wider kernel on later passes. */
+export function fillBadPixels(src: Float32Array, nx: number, ny: number, passes = 4): Float32Array {
+  let out = Float32Array.from(src);
+  let sigma = 1;
+  for (let pass = 0; pass < passes; pass++) {
+    const holes: number[] = [];
+    let anyGood = false;
+    for (let i = 0; i < out.length; i++) Number.isFinite(out[i]) ? (anyGood = true) : holes.push(i);
+    if (!holes.length || !anyGood) break;
+    const r = Math.ceil(4 * sigma);
+    const next = Float32Array.from(out);
+    for (const i of holes) {
+      const x = i % nx;
+      const y = (i / nx) | 0;
+      let sw = 0;
+      let sv = 0;
+      for (let dy = -r; dy <= r; dy++) {
+        const yy = Math.min(ny - 1, Math.max(0, y + dy));
+        for (let dx = -r; dx <= r; dx++) {
+          const v = out[yy * nx + Math.min(nx - 1, Math.max(0, x + dx))];
+          if (!Number.isFinite(v)) continue;
+          const w = Math.exp(-(dx * dx + dy * dy) / (2 * sigma * sigma));
+          sw += w;
+          sv += w * v;
+        }
+      }
+      if (sw > 1e-8) next[i] = sv / sw;
+    }
+    out = next;
+    sigma *= 2;
+  }
+  return out;
 }
 
 /** How big a raw cutout to download so a rotated frame still fills the view. */
@@ -61,23 +111,35 @@ export function alignCutout(
   size: number,
   subtractZodi = true,
 ): AlignedImage {
-  const { image, zodi, flags } = cut;
+  const { image, zodi, flags, variance } = cut;
   const wcs = new SipWcs(image.header);
   const { nx, ny } = image;
-  const src = image.data;
+  const n = nx * ny;
 
-  // Remove the model of sunlight scattered by dust in our solar system, the
-  // dominant smooth background in every SPHEREx image.
-  let pix = src;
-  if (subtractZodi && zodi && zodi.nx === nx && zodi.ny === ny) {
-    pix = new Float32Array(src.length);
-    for (let i = 0; i < src.length; i++) pix[i] = src[i] - zodi.data[i];
+  // Bad pixels (by quality flag, or no value) become NaN in the science image.
+  const mask = flags ? badBitmask(flags.header) : 0;
+  const fv = flags && flags.nx === nx && flags.ny === ny ? flagValues(flags) : null;
+  const useZodi = subtractZodi && zodi && zodi.nx === nx && zodi.ny === ny;
+  const science = new Float32Array(n);
+  let nBad = 0;
+  for (let i = 0; i < n; i++) {
+    // Remove the model of sunlight scattered by solar-system dust, the
+    // dominant smooth background in every SPHEREx image.
+    const v = useZodi ? image.data[i] - zodi!.data[i] : image.data[i];
+    const bad = (fv !== null && (fv[i] & mask) !== 0) || !Number.isFinite(v);
+    if (bad) nBad++;
+    science[i] = bad ? NaN : v;
   }
+  const display = nBad ? fillBadPixels(science, nx, ny) : science;
 
-  let flagged = 0;
-  if (flags) {
-    for (let i = 0; i < flags.data.length; i++) if (flags.data[i] !== 0) flagged++;
-    flagged /= flags.data.length || 1;
+  let noise: number | null = null;
+  if (variance && variance.data.length === n) {
+    const good: number[] = [];
+    for (let i = 0; i < n; i++) {
+      const v = variance.data[i];
+      if (Number.isFinite(science[i]) && v > 0) good.push(v);
+    }
+    if (good.length) noise = Math.sqrt(median(good));
   }
 
   const [cx, cy] = wcs.worldToPix(ra, dec);
@@ -85,19 +147,23 @@ export function alignCutout(
 
   // Output grid: north-up, east-left tangent plane centred on (ra, dec).
   const out = new Float32Array(size * size);
+  const sci = new Float32Array(size * size);
+  const filled = new Uint8Array(size * size);
   const scale = fovDeg / size;
   const crpix = (size + 1) / 2;
   let good = 0;
   for (let r = 0; r < size; r++) {
     const fy = size - r; // FITS row of this output row (top row = north)
     for (let c = 0; c < size; c++) {
+      const o = r * size + c;
       const [wr, wd] = tanDeproject(-scale * (c + 1 - crpix), scale * (fy - crpix), ra, dec);
       const [px, py] = wcs.worldToPix(wr, wd);
-      // bilinear interpolation, 0-based array coordinates
+      // bilinear interpolation, 0-based array coordinates. Values are surface
+      // brightness (MJy/sr), so no flux rescaling is needed.
       const x = px - 1;
       const y = py - 1;
       if (x < -0.5 || y < -0.5 || x > nx - 0.5 || y > ny - 0.5) {
-        out[r * size + c] = NaN;
+        out[o] = sci[o] = NaN;
         continue;
       }
       const x0 = Math.min(nx - 2, Math.max(0, Math.floor(x)));
@@ -105,11 +171,14 @@ export function alignCutout(
       const tx = Math.min(1, Math.max(0, x - x0));
       const ty = Math.min(1, Math.max(0, y - y0));
       const i = y0 * nx + x0;
-      const v =
-        (1 - ty) * ((1 - tx) * pix[i] + tx * pix[i + 1]) +
-        ty * ((1 - tx) * pix[i + nx] + tx * pix[i + nx + 1]);
-      out[r * size + c] = v;
-      if (Number.isFinite(v)) good++;
+      const lerp = (p: Float32Array) =>
+        (1 - ty) * ((1 - tx) * p[i] + tx * p[i + 1]) + ty * ((1 - tx) * p[i + nx] + tx * p[i + nx + 1]);
+      out[o] = lerp(display);
+      sci[o] = lerp(science);
+      if (Number.isFinite(out[o])) {
+        good++;
+        if (!Number.isFinite(sci[o])) filled[o] = 1;
+      }
     }
   }
 
@@ -119,7 +188,10 @@ export function alignCutout(
     wavelength,
     bandwidth,
     coverage: good / (size * size),
-    flaggedFraction: flagged,
+    flaggedFraction: nBad / n,
+    science: sci,
+    filled,
+    noise,
   };
 }
 

@@ -71,6 +71,10 @@ frontend/src/
   data/align.ts      rotates each image north-up, zodi subtraction, scaling
   data/catalogs.ts   Gaia DR3 / CatWISE2020 overlays (IRSA Gator) + known movers
   data/targets.ts    test targets and coordinate parsing
+  data/quality.ts    which pixels to trust (FLAGS bitmask names from the header)
+  data/bands.ts      the 102 spectral channels
+  data/science.ts    frame metadata, co-adds, spectra (forced PSF photometry)
+  data/DataPanel.tsx data panel UI (co-add, spectrum, flags)
   api/client.ts      what the components call
   state/ viewer/ components/ overlays/   the interface
 ```

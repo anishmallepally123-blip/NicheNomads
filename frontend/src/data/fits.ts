@@ -13,9 +13,12 @@ export interface Hdu {
   nx: number;
   ny: number;
   data: Float32Array; // row 0 = FITS row 1 (south for north-up images)
+  ints?: Int32Array; // exact values for integer images (bit masks such as FLAGS)
+  raw?: Uint8Array; // undecoded bytes, for binary tables
 }
 
 const BLOCK = 2880;
+const TABLE_NAMES = new Set(["EPSF", "WCS-WAVE"]);
 
 function parseCard(card: string, header: Header) {
   const key = card.slice(0, 8).trim();
@@ -147,19 +150,25 @@ export async function readFitsHdus(res: Response, wanted: string[]): Promise<Rec
       for (let i = 1; i <= naxis; i++) count *= Number(header[`NAXIS${i}`]);
       const bytes = (count * Math.abs(bitpix)) / 8 + Number(header.PCOUNT ?? 0);
       const name = String(header.EXTNAME ?? (index === 0 ? "PRIMARY" : "")).trim();
-      if (wanted.includes(name) && naxis === 2 && header.XTENSION !== "BINTABLE") {
+      const table = header.XTENSION === "BINTABLE";
+      if (wanted.includes(name) && naxis === 2) {
         const data = await stream.read(offset, (count * Math.abs(bitpix)) / 8);
-        found[name] = {
-          name,
-          header,
-          nx: Number(header.NAXIS1),
-          ny: Number(header.NAXIS2),
-          data: toFloat(data, bitpix, count, header),
-        };
+        const hdu: Hdu = { name, header, nx: Number(header.NAXIS1), ny: Number(header.NAXIS2), data: new Float32Array(0) };
+        if (table) hdu.raw = data;
+        else {
+          hdu.data = toFloat(data, bitpix, count, header);
+          if (bitpix === 32) {
+            const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+            hdu.ints = new Int32Array(count);
+            for (let i = 0; i < count; i++) hdu.ints[i] = view.getInt32(i * 4);
+          }
+        }
+        found[name] = hdu;
       }
       offset += Math.ceil(bytes / BLOCK) * BLOCK;
-      // SPHEREx puts every image before the tables, so a table means we are done
-      if (header.XTENSION === "BINTABLE") break;
+      // SPHEREx puts every image before the tables: once we reach the tables,
+      // stop unless a table is among what is still wanted
+      if (table && !wanted.some((w) => !(w in found) && TABLE_NAMES.has(w))) break;
     }
   } finally {
     stream.cancel(); // skip the rest of the file (mostly the PSF table)
