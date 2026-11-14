@@ -18,6 +18,7 @@ import AccountButton from "./saved/AccountButton";
 import { useEmbedBridge } from "./state/embedBridge";
 import { fetchTargets, type Target } from "./api/client";
 import { formatDec, formatFov, formatRa } from "./lib/sky";
+import { useMasonry } from "./lib/masonry";
 import DataPanel from "./data/DataPanel";
 import { AladinPanel, OverlayPanel, SourceCard, mjdNow, useOverlayCanvas, useOverlays } from "./overlays";
 import Info from "./glossary/Info";
@@ -32,6 +33,8 @@ const IMAGE_SIZE = 384; // pixels requested from the backend per frame
 export default function App() {
   const [state, update] = useUrlState();
   const [reloadKey, setReloadKey] = useState(0);
+  const asideRef = useRef<HTMLElement>(null);
+  useMasonry(asideRef);
   const [targets, setTargets] = useState<Target[]>([]);
   useEffect(() => {
     fetchTargets().then(setTargets).catch(() => setTargets([]));
@@ -212,7 +215,7 @@ export default function App() {
           )}
         </section>
 
-        <aside>
+        <aside ref={asideRef}>
           <section className="card">
             <h2>This view</h2>
             <dl>
