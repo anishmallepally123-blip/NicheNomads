@@ -1,6 +1,6 @@
-// Backend calls and types for the catalogue overlays.
+// Types and data calls for the catalogue overlays (queried from the browser).
 
-const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "";
+import { coneSearch, knownMovers } from "../data/catalogs";
 
 export type LayerKey = "gaia" | "wise" | "movers";
 
@@ -43,15 +43,6 @@ export async function fetchCatalog(
   fov: number,
   signal?: AbortSignal,
 ): Promise<CatalogResult> {
-  const res = await fetch(`${BASE}/api/overlays/${key}?ra=${ra}&dec=${dec}&fov=${fov}`, { signal });
-  if (!res.ok) {
-    let detail = res.statusText;
-    try {
-      detail = (await res.json()).detail ?? detail;
-    } catch {
-      /* not json */
-    }
-    throw new Error(typeof detail === "string" ? detail : "Catalogue request failed");
-  }
-  return res.json();
+  if (key === "movers") return knownMovers(ra, dec, fov);
+  return coneSearch(key, ra, dec, fov, signal);
 }

@@ -1,5 +1,10 @@
 # Architecture
 
+> **Update (Nov 14):** the Python backend was removed. Its work now runs in the
+> browser under `frontend/src/data/` (irsa, fits, wcs, align, catalogs,
+> targets, quality, bands, science), with the same names and behaviour as the old `backend/app` modules
+> described below. Add new features there instead of a backend route.
+
 ## The idea in one picture
 
 ```

@@ -10,32 +10,37 @@ new planet or brown dwarf in our Sun's neighbourhood.
 Images come live from NASA's archive (IRSA), so new SPHEREx observations show
 up on their own.
 
-## Run it
+## Open it
 
-You need [Node.js 18+](https://nodejs.org) and [Python 3.10+](https://www.python.org/downloads/).
+It is a plain static website: open the public URL in any browser. Nothing to
+install, no Python, no server of our own. All the work (finding images,
+reading the FITS files, lining frames up north-up, the catalogue overlays)
+happens in your browser.
+
+## Put it online (one step)
+
+Connect the repository to **Netlify** or **Vercel** and press deploy. The
+settings are already in `netlify.toml` / `vercel.json`, including the one
+rewrite rule the site needs: NASA's archive (IRSA) does not allow direct
+browser calls from other websites (no CORS headers), so the host forwards
+`/irsa/*` to `https://irsa.ipac.caltech.edu`. That rule is the only "server"
+involved and it is free.
+
+GitHub Pages cannot forward requests. To use it anyway, deploy
+`proxy/cloudflare-worker.js` as a free Cloudflare Worker and build with
+`VITE_IRSA_BASE=https://<your-worker>.workers.dev`. More in
+[docs/DEPLOY.md](docs/DEPLOY.md).
+
+## Work on the code
+
+Needs [Node.js 18+](https://nodejs.org).
 
 ```bash
-npm run setup   # once: installs everything
-npm run dev     # starts the site
+npm run setup   # once
+npm run dev     # http://localhost:5173 (the dev server forwards /irsa itself)
 ```
 
-Then open <http://localhost:5173>. The first load of a new sky position takes
-about 20 seconds while images download from NASA. After that it is cached.
-
-Other commands:
-
-| Command         | What it does                                              |
-| --------------- | --------------------------------------------------------- |
-| `npm run test`  | Runs the backend tests and the frontend type check        |
-| `npm run build` | Builds the frontend for production                        |
-| `npm run start` | Runs one server on port 8000 with the site and the API    |
-
-## Put it online
-
-`docker build -t spherex-blink . && docker run -p 8000:8000 spherex-blink`
-gives one server with the site and the API. Ready-made configs for Render,
-Fly.io, Vercel and Netlify, plus Sentry error reporting, are explained in
-[docs/DEPLOY.md](docs/DEPLOY.md).
+`npm run build` writes the site to `frontend/dist`.
 
 ## Using it
 
@@ -59,17 +64,19 @@ Fly.io, Vercel and Netlify, plus Sentry error reporting, are explained in
 ## How the code is organised
 
 ```
-backend/app/
-  data_access.py   talks to NASA IRSA (find images, download cutouts, cache)
-  cutouts.py       rotates each image to north-up so frames line up
-  render.py        turns image data into a PNG
-  targets.py       test targets and coordinate parsing
-  api.py           the web API
 frontend/src/
-  api/client.ts    calls the backend
-  state/           URL <-> app state
-  viewer/          the blink player (canvas, playback, controls)
-  components/      search box, target picker, status bar
+  data/irsa.ts       finds SPHEREx images (IRSA SIA) and downloads cutouts
+  data/fits.ts       reads FITS cutouts, stops downloading once it has the image
+  data/wcs.ts        sky <-> pixel maths (TAN-SIP), like astropy.wcs
+  data/align.ts      rotates each image north-up, zodi subtraction, scaling
+  data/catalogs.ts   Gaia DR3 / CatWISE2020 overlays (IRSA Gator) + known movers
+  data/targets.ts    test targets and coordinate parsing
+  data/quality.ts    which pixels to trust (FLAGS bitmask names from the header)
+  data/bands.ts      the 102 spectral channels
+  data/science.ts    frame metadata, co-adds, spectra (forced PSF photometry)
+  data/DataPanel.tsx data panel UI (co-add, spectrum, flags)
+  api/client.ts      what the components call
+  state/ viewer/ components/ overlays/   the interface
 ```
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how it fits together and

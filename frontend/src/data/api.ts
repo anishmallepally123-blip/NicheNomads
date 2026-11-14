@@ -1,7 +1,8 @@
-// Backend calls for the data panel: co-adds, spectra, metadata and flags.
+// Data panel calls: co-adds, spectra, metadata and flags. All computed in the
+// browser (see science.ts).
 import type { FrameInfo, View } from "../api/client";
-
-const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "";
+import { toImageData } from "./align";
+import { coadd, coaddFits, frameMeta, spectrum } from "./science";
 
 export interface FlagCount {
   bit: number;
@@ -79,28 +80,11 @@ export interface CoaddResult {
   fitsUrl: string;
 }
 
-async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const res = await fetch(BASE + path, { signal });
-  if (!res.ok) {
-    let detail = res.statusText;
-    try {
-      detail = (await res.json()).detail ?? detail;
-    } catch {
-      /* not json */
-    }
-    throw new Error(typeof detail === "string" ? detail : "Request failed");
-  }
-  return res.json();
-}
-
 export const fetchFrameMeta = (id: string, view: View, signal?: AbortSignal) =>
-  getJson<FrameMeta>(
-    `/api/frames/${encodeURIComponent(id)}/meta?ra=${view.ra}&dec=${view.dec}&fov=${view.fov}`,
-    signal,
-  );
+  frameMeta(id, view.ra, view.dec, view.fov, signal) as Promise<FrameMeta>;
 
 export const fetchSpectrum = (ra: number, dec: number, signal?: AbortSignal) =>
-  getJson<Spectrum>(`/api/spectrum?ra=${ra}&dec=${dec}`, signal);
+  spectrum(ra, dec, signal) as Promise<Spectrum>;
 
 export async function fetchCoadd(
   view: View,
@@ -109,29 +93,17 @@ export async function fetchCoadd(
   size: number,
   signal?: AbortSignal,
 ): Promise<CoaddResult> {
-  const query =
-    `/api/coadd?ra=${view.ra}&dec=${view.dec}&fov=${view.fov}&band=${band}&size=${size}` +
-    (channel ? `&channel=${channel}` : "");
-  const res = await fetch(BASE + query, { signal });
-  if (!res.ok) {
-    let detail = res.statusText;
-    try {
-      detail = (await res.json()).detail ?? detail;
-    } catch {
-      /* not json */
-    }
-    throw new Error(detail);
-  }
-  const num = (name: string) => {
-    const v = res.headers.get(name);
-    return v ? Number(v) : null;
-  };
+  const out = await coadd(view, band, channel, size, signal);
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  canvas.getContext("2d")!.putImageData(toImageData(out.image), 0, 0);
+  const png = await new Promise<Blob>((ok, fail) => canvas.toBlob((b) => (b ? ok(b) : fail(new Error("PNG failed"))), "image/png"));
   return {
-    url: URL.createObjectURL(await res.blob()),
-    framesUsed: num("X-Frames-Used") ?? 0,
-    waveMin: num("X-Wave-Min-Um"),
-    waveMax: num("X-Wave-Max-Um"),
-    clipped: num("X-Clipped-Fraction") ?? 0,
-    fitsUrl: BASE + query + "&format=fits",
+    url: URL.createObjectURL(png),
+    framesUsed: out.framesUsed.length,
+    waveMin: out.waveMin,
+    waveMax: out.waveMax,
+    clipped: out.clipped,
+    fitsUrl: URL.createObjectURL(coaddFits(out, view, band, channel)),
   };
 }

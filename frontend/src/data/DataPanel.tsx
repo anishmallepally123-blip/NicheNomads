@@ -129,7 +129,7 @@ function CoaddSection({ view, band }: { view: View; band: number }) {
           <p className="hint">
             {result.value.framesUsed} exposures, {result.value.waveMin?.toFixed(2)} to {result.value.waveMax?.toFixed(2)} µm,
             same field and orientation as the main view. {(result.value.clipped * 100).toFixed(1)}% of samples rejected as outliers.{" "}
-            <a href={result.value.fitsUrl}>Download FITS</a>
+            <a href={result.value.fitsUrl} download="spherex_coadd.fits">Download FITS</a>
           </p>
         </>
       )}
