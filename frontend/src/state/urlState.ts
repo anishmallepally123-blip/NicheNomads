@@ -1,14 +1,44 @@
 // URL state: the address bar is the single source of truth for what is shown,
-// so any view can be shared or embedded with a link such as
-//   /?ra=133.795129&dec=-7.245147&fov=10&band=6&embed=1
-import { useCallback, useEffect, useState } from "react";
+// so any view can be shared, bookmarked or embedded with a link such as
+//   /?ra=133.795129&dec=-7.245147&fov=10&band=6&frame=<obs_id>&op=diff&ref=median&embed=1
+//
+// Parameters (all optional, anything missing or invalid falls back to a default):
+//   ra, dec     view centre, degrees (ICRS). `ra` also accepts hours as "8h55m10.8s".
+//   fov         field of view, arcmin (1 to 60)
+//   band        SPHEREx detector 1..6
+//   frame       obs_id of the frame to show (the player starts paused on it)
+//   fps         playback speed, 1..15
+//   play        0 = start paused
+//   zoom        on-screen zoom of the loaded picture (0.5..12)
+//   op, ref, n, gain   image arithmetic, see ImageOp below
+//   invert, marker     display toggles (1/0)
+//   embed       1 = bare viewer for iframes
+//   controls    0 = in embed mode also hide the player bar
+import { useCallback, useEffect, useRef, useState } from "react";
+
+/** none = plain blink; diff = frame minus a reference; sum = average of N frames */
+export type ImageOp = "none" | "diff" | "sum";
+/** What a difference is taken against: previous/first frame, the median or mean of
+ *  all frames (static stars cancel, movers stay), or one pinned frame by obs_id. */
+export type DiffRef = "prev" | "first" | "median" | "mean" | string;
 
 export interface ViewState {
   ra: number;
   dec: number;
   fov: number; // arcmin
   band: number; // detector 1..6
-  embed: boolean; // hide page chrome, for iframes
+  frame: string | null; // obs_id
+  fps: number;
+  play: boolean;
+  zoom: number;
+  op: ImageOp;
+  ref: DiffRef;
+  n: number; // frames per stack for op=sum
+  gain: number; // contrast multiplier for op=diff
+  invert: boolean;
+  marker: boolean;
+  embed: boolean;
+  controls: boolean; // player bar visible in embed mode
 }
 
 // WISE 0855-0714, the challenge's headline test target
@@ -17,43 +47,141 @@ export const DEFAULT_STATE: ViewState = {
   dec: -7.245147,
   fov: 10,
   band: 6,
+  frame: null,
+  fps: 4,
+  play: true,
+  zoom: 1,
+  op: "none",
+  ref: "median",
+  n: 4,
+  gain: 3,
+  invert: false,
+  marker: true,
   embed: false,
+  controls: true,
 };
 
-export const FOV_CHOICES = [5, 10, 20, 40];
+export const FOV_MIN = 1;
+export const FOV_MAX = 60;
+export const FOV_CHOICES = [2, 5, 10, 20, 40, 60];
+export const ZOOM_MIN = 0.5;
+export const ZOOM_MAX = 12;
+
+/** Parameters that move you to a different patch of sky get their own history
+ *  entry (so Back works like in a map); everything else replaces the entry. */
+const NAVIGATION_KEYS: (keyof ViewState)[] = ["ra", "dec", "fov", "band"];
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.min(hi, Math.max(lo, v));
 }
 
+/** "8h55m10.8s" or "8 55 10.8" (hours) or plain degrees. */
+function parseRa(raw: string | null): number {
+  if (raw === null || raw.trim() === "") return NaN;
+  const plain = Number(raw);
+  if (Number.isFinite(plain)) return plain;
+  const parts = raw.trim().split(/[hms:\s]+/).filter(Boolean).map(Number);
+  if (parts.length === 0 || parts.some((x) => !Number.isFinite(x))) return NaN;
+  const [h, m = 0, s = 0] = parts;
+  return (h + m / 60 + s / 3600) * 15;
+}
+
+/** "-7d14m42.5s" or "-7 14 42.5" or plain degrees. */
+function parseDec(raw: string | null): number {
+  if (raw === null || raw.trim() === "") return NaN;
+  const plain = Number(raw);
+  if (Number.isFinite(plain)) return plain;
+  const t = raw.trim();
+  const sign = t.startsWith("-") ? -1 : 1;
+  const parts = t.replace(/^[+-]/, "").split(/[d°m′'s″"\s:]+/).filter(Boolean).map(Number);
+  if (parts.length === 0 || parts.some((x) => !Number.isFinite(x))) return NaN;
+  const [d, m = 0, s = 0] = parts;
+  return sign * (d + m / 60 + s / 3600);
+}
+
 export function parseUrl(search: string): ViewState {
   const p = new URLSearchParams(search);
+  const D = DEFAULT_STATE;
   const num = (key: string, fallback: number) => {
     const raw = p.get(key);
-    const v = raw === null ? NaN : Number(raw);
+    const v = raw === null || raw.trim() === "" ? NaN : Number(raw);
     return Number.isFinite(v) ? v : fallback;
   };
+  const flag = (key: string, fallback: boolean) => {
+    const raw = p.get(key);
+    if (raw === null) return fallback;
+    return !["0", "false", "no", "off"].includes(raw.toLowerCase());
+  };
+  const ra = parseRa(p.get("ra"));
+  const dec = parseDec(p.get("dec"));
+  const op = p.get("op");
+  const ref = p.get("ref");
   return {
-    ra: ((num("ra", DEFAULT_STATE.ra) % 360) + 360) % 360,
-    dec: clamp(num("dec", DEFAULT_STATE.dec), -90, 90),
-    fov: clamp(num("fov", DEFAULT_STATE.fov), 1, 60),
-    band: clamp(Math.round(num("band", DEFAULT_STATE.band)), 1, 6),
-    embed: p.get("embed") === "1",
+    ra: Number.isFinite(ra) ? ((ra % 360) + 360) % 360 : D.ra,
+    dec: Number.isFinite(dec) ? clamp(dec, -90, 90) : D.dec,
+    fov: clamp(num("fov", D.fov), FOV_MIN, FOV_MAX),
+    band: clamp(Math.round(num("band", D.band)), 1, 6),
+    frame: p.get("frame") || null,
+    fps: clamp(Math.round(num("fps", D.fps)), 1, 15),
+    play: flag("play", D.play) && !p.get("frame"),
+    zoom: clamp(num("zoom", D.zoom), ZOOM_MIN, ZOOM_MAX),
+    op: op === "diff" || op === "sum" ? op : "none",
+    ref: ref && /^[\w.:-]{1,80}$/.test(ref) ? ref : D.ref,
+    n: clamp(Math.round(num("n", D.n)), 2, 20),
+    gain: clamp(num("gain", D.gain), 0.5, 20),
+    invert: flag("invert", D.invert),
+    marker: flag("marker", D.marker),
+    embed: flag("embed", D.embed),
+    controls: flag("controls", D.controls),
   };
 }
 
-export function toUrl(s: ViewState): string {
+const round = (v: number, digits: number) => String(+v.toFixed(digits));
+
+/** Query string for a state. Only values that differ from the defaults are written,
+ *  except the position, which is always there so links stay readable. */
+export function toQuery(s: ViewState, overrides: Partial<ViewState> = {}): string {
+  const v = { ...s, ...overrides };
+  const D = DEFAULT_STATE;
   const p = new URLSearchParams();
-  p.set("ra", s.ra.toFixed(6));
-  p.set("dec", s.dec.toFixed(6));
-  p.set("fov", String(s.fov));
-  p.set("band", String(s.band));
-  if (s.embed) p.set("embed", "1");
-  return `${window.location.pathname}?${p.toString()}`;
+  p.set("ra", v.ra.toFixed(6));
+  p.set("dec", v.dec.toFixed(6));
+  p.set("fov", round(v.fov, 3));
+  p.set("band", String(v.band));
+  if (v.frame && !v.play) p.set("frame", v.frame);
+  if (v.fps !== D.fps) p.set("fps", String(v.fps));
+  if (!v.play && !v.frame) p.set("play", "0");
+  if (Math.abs(v.zoom - 1) > 0.01) p.set("zoom", round(v.zoom, 2));
+  if (v.op !== "none") {
+    p.set("op", v.op);
+    if (v.op === "diff") {
+      p.set("ref", v.ref);
+      if (v.gain !== D.gain) p.set("gain", round(v.gain, 1));
+    } else p.set("n", String(v.n));
+  }
+  if (v.invert) p.set("invert", "1");
+  if (!v.marker) p.set("marker", "0");
+  if (v.embed) {
+    p.set("embed", "1");
+    if (!v.controls) p.set("controls", "0");
+  }
+  return p.toString();
 }
 
-export function useUrlState(): [ViewState, (patch: Partial<ViewState>) => void] {
+export function toUrl(s: ViewState, overrides: Partial<ViewState> = {}): string {
+  return `${window.location.pathname}?${toQuery(s, overrides)}`;
+}
+
+/** Absolute link to a state, e.g. for "copy link" or the embed snippet. */
+export function absoluteUrl(s: ViewState, overrides: Partial<ViewState> = {}): string {
+  return `${window.location.origin}${toUrl(s, overrides)}`;
+}
+
+export type UpdateFn = (patch: Partial<ViewState>) => void;
+
+export function useUrlState(): [ViewState, UpdateFn] {
   const [state, setState] = useState<ViewState>(() => parseUrl(window.location.search));
+  const pendingPush = useRef(false);
 
   useEffect(() => {
     const onPop = () => setState(parseUrl(window.location.search));
@@ -61,19 +189,38 @@ export function useUrlState(): [ViewState, (patch: Partial<ViewState>) => void] 
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  const update = useCallback((patch: Partial<ViewState>) => {
+  const update = useCallback<UpdateFn>((patch) => {
     setState((prev) => {
       const next = { ...prev, ...patch };
-      window.history.pushState(null, "", toUrl(next));
+      if (NAVIGATION_KEYS.some((k) => patch[k] !== undefined && patch[k] !== prev[k])) {
+        // A new place: forget the frame and on-screen zoom that belonged to the old one.
+        if (patch.frame === undefined) next.frame = null;
+        if (patch.zoom === undefined) next.zoom = 1;
+        pendingPush.current = true;
+      }
       return next;
     });
   }, []);
 
-  // Make sure a bare "/" also ends up with a shareable address.
+  // Write the address bar after each change. Navigation pushes a history entry
+  // right away. Everything else (frame, zoom, speed...) is folded into the current
+  // entry after a short pause, because browsers limit how often the URL may change.
   useEffect(() => {
-    window.history.replaceState(null, "", toUrl(state));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const url = toUrl(state);
+    const sameAsBar = url === window.location.pathname + window.location.search;
+    if (pendingPush.current) {
+      pendingPush.current = false;
+      // Inside an iframe, never add entries to the host page's Back button.
+      if (!sameAsBar) {
+        if (state.embed) window.history.replaceState(null, "", url);
+        else window.history.pushState(null, "", url);
+      }
+      return;
+    }
+    if (sameAsBar) return;
+    const timer = window.setTimeout(() => window.history.replaceState(null, "", url), 400);
+    return () => window.clearTimeout(timer);
+  }, [state]);
 
   return [state, update];
 }
