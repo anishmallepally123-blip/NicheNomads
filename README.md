@@ -44,12 +44,17 @@ Fly.io, Vercel and Netlify, plus Sentry error reporting, are explained in
   `08h55m10.8s -07d14m42s`.
 - **Play / Pause**, change the **speed**, or step one frame at a time
   (space bar and arrow keys work too).
-- **Scroll** to zoom, **drag** to pan, **double-click** to re-centre on a new spot.
+- **Scroll** or pinch to zoom, **drag** to pan (or `+`/`-`, WASD), **double-click**
+  to re-centre. After zooming or panning, "Load sharper images" fetches new
+  pictures of just that area.
+- Jump anywhere with the **all-sky map**, or step one field N/S/E/W.
 - Choose the **band** (SPHEREx has six detectors covering 0.75 to 5 microns)
-  and the **field of view**.
-- The address bar always describes the current view, so you can share it:
-  `/?ra=133.795129&dec=-7.245147&fov=10&band=6`. Add `&embed=1` for a bare
-  viewer to put in an iframe.
+  and any **field of view** from 1′ to 1°.
+- **Subtract** the median of all frames to make stars vanish so movers stand
+  out, or **Add** a few frames together to see fainter things.
+- The address bar always describes the current view (position, frame, zoom,
+  image arithmetic), so you can share it. "Share" gives a link and iframe
+  embed code (`&embed=1`).
 
 ## How the code is organised
 

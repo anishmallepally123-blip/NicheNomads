@@ -1,30 +1,66 @@
 import { useEffect, useMemo, useState } from "react";
 import Controls from "./components/Controls";
+import EmbedPanel from "./components/EmbedPanel";
+import ImageOpsPanel from "./components/ImageOpsPanel";
+import SkyNavigator from "./components/SkyNavigator";
 import StatusBar from "./components/StatusBar";
 import ViewerOverlay from "./components/ViewerOverlay";
 import BlinkCanvas from "./viewer/BlinkCanvas";
 import PlayerControls from "./viewer/PlayerControls";
 import { useFrames } from "./viewer/useFrames";
+import { useImageOps } from "./viewer/useImageOps";
 import { usePlayer } from "./viewer/usePlayer";
-import { DEFAULT_STATE, useUrlState } from "./state/urlState";
-import { formatDec, formatRa } from "./lib/sky";
+import { absoluteUrl, DEFAULT_STATE, useUrlState } from "./state/urlState";
+import { useEmbedBridge } from "./state/embedBridge";
+import { fetchTargets, type Target } from "./api/client";
+import { formatDec, formatFov, formatRa } from "./lib/sky";
 
 const IMAGE_SIZE = 384; // pixels requested from the backend per frame
 
 export default function App() {
   const [state, update] = useUrlState();
   const [reloadKey, setReloadKey] = useState(0);
-  const [invert, setInvert] = useState(false);
-  const [showMarker, setShowMarker] = useState(true);
-  const [copied, setCopied] = useState(false);
+  const [targets, setTargets] = useState<Target[]>([]);
+  useEffect(() => {
+    fetchTargets().then(setTargets).catch(() => setTargets([]));
+  }, []);
 
   const view = useMemo(
     () => ({ ra: state.ra, dec: state.dec, fov: state.fov }),
     [state.ra, state.dec, state.fov],
   );
   const frames = useFrames(view, state.band, IMAGE_SIZE, reloadKey);
-  const player = usePlayer(frames.frames.length);
+  const player = usePlayer(frames.frames.length, { fps: state.fps, playing: state.play });
   const current = frames.frames[player.index] ?? null;
+  const ops = useImageOps(frames.frames, player.index, state.op, state.ref, state.n, state.gain);
+
+  // Frame from the URL: keep the paused player on that exposure while frames
+  // are still arriving (new ones can be inserted before it in time order).
+  const { playing, setIndex } = player;
+  useEffect(() => {
+    if (playing || !state.frame) return;
+    const i = frames.frames.findIndex((f) => f.obs_id === state.frame);
+    if (i >= 0 && i !== player.index) setIndex(i);
+  }, [frames.frames, state.frame]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ...and write the player back: the paused frame and the speed go in the URL.
+  useEffect(() => {
+    if (playing) update({ play: true });
+    else if (current) update({ play: false, frame: current.obs_id });
+    else update({ play: false });
+  }, [player.index, playing]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => update({ fps: player.fps }), [player.fps, update]);
+
+  useEmbedBridge(state, update, player, current, frames.frames.length);
+
+  // In an iframe the picture must also fit the height.
+  const [winHeight, setWinHeight] = useState(window.innerHeight);
+  useEffect(() => {
+    const onResize = () => setWinHeight(window.innerHeight);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const maxSide = state.embed ? winHeight - (state.controls ? 190 : 50) : undefined;
 
   // Keyboard: space = play/pause, arrows = step
   useEffect(() => {
@@ -72,10 +108,15 @@ export default function App() {
           <div className="stage">
             <BlinkCanvas
               frame={current}
+              image={ops.image}
               view={view}
-              invert={invert}
-              showMarker={showMarker}
+              invert={state.invert}
+              showMarker={state.marker}
+              zoom={state.zoom}
+              onZoomChange={(zoom) => update({ zoom: +zoom.toFixed(2) })}
               onRecenter={(ra, dec) => update({ ra, dec })}
+              onLoadView={(ra, dec, fov) => update({ ra, dec, fov })}
+              maxSide={maxSide}
             />
             <ViewerOverlay
               frames={frames}
@@ -85,7 +126,16 @@ export default function App() {
               onExample={() => update({ ra: DEFAULT_STATE.ra, dec: DEFAULT_STATE.dec, band: DEFAULT_STATE.band })}
             />
           </div>
-          <PlayerControls player={player} frames={frames.frames} />
+          {ops.label && <p className="ops-banner">{ops.label}</p>}
+          {(!state.embed || state.controls) && <PlayerControls player={player} frames={frames.frames} />}
+          {state.embed && (
+            <p className="embed-credit">
+              SPHEREx images: NASA/JPL-Caltech/IRSA ·{" "}
+              <a href={absoluteUrl(state, { embed: false })} target="_blank" rel="noreferrer">
+                Open full viewer ↗
+              </a>
+            </p>
+          )}
         </section>
 
         <aside>
@@ -96,36 +146,34 @@ export default function App() {
             <dt>Dec</dt>
             <dd>{formatDec(state.dec)} <span className="muted">({state.dec.toFixed(5)}°)</span></dd>
             <dt>Field</dt>
-            <dd>{state.fov}′ × {state.fov}′, north up, east left</dd>
+            <dd>{formatFov(state.fov)} × {formatFov(state.fov)}, north up, east left</dd>
           </dl>
           <label className="check">
-            <input type="checkbox" checked={showMarker} onChange={(e) => setShowMarker(e.target.checked)} />
+            <input type="checkbox" checked={state.marker} onChange={(e) => update({ marker: e.target.checked })} />
             Mark the target position
           </label>
           <label className="check">
-            <input type="checkbox" checked={invert} onChange={(e) => setInvert(e.target.checked)} />
+            <input type="checkbox" checked={state.invert} onChange={(e) => update({ invert: e.target.checked })} />
             Invert colours
           </label>
+
+          <h2>Move around the sky</h2>
+          <SkyNavigator ra={state.ra} dec={state.dec} fov={state.fov} targets={targets} onJump={(ra, dec) => update({ ra, dec })} />
           <p className="hint">
-            Scroll to zoom, drag to pan, double-click to re-centre. Space plays or pauses, arrow keys step
-            one frame.
+            Scroll or pinch to zoom, drag to pan (Shift+arrows or WASD on a keyboard, + and − to zoom, 0 to
+            fit). Double-click re-centres. Space plays or pauses, arrow keys step one frame.
           </p>
+
+          <h2>Add / subtract images</h2>
+          <ImageOpsPanel state={state} frames={frames.frames} current={current} label={ops.label} onChange={update} />
+
           <p className="hint">
             Each SPHEREx exposure sees a slightly different wavelength at this spot, so brightness can
             change from frame to frame even for ordinary stars.
           </p>
-          <button
-            className="copy"
-            onClick={() => {
-              navigator.clipboard?.writeText(window.location.href).then(() => {
-                setCopied(true);
-                window.setTimeout(() => setCopied(false), 2000);
-              });
-            }}
-            title="Copy a link to exactly this view"
-          >
-            <span aria-live="polite">{copied ? "Link copied ✓" : "Copy link to this view"}</span>
-          </button>
+
+          <h2>Share</h2>
+          <EmbedPanel state={state} />
         </aside>
       </main>
 

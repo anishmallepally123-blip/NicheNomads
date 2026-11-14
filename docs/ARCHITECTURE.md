@@ -74,13 +74,17 @@ are limited to 4 at a time and retried with a short wait.
 
 | File                         | Job                                                        |
 | ---------------------------- | ---------------------------------------------------------- |
-| `state/urlState.ts`          | The URL is the source of truth: `ra`, `dec`, `fov`, `band`, `embed` |
+| `state/urlState.ts`          | The URL is the source of truth (all parameters listed at the top of the file) |
+| `state/embedBridge.ts`       | postMessage API for pages that embed the viewer in an iframe |
 | `api/client.ts`              | All backend calls and the data types                       |
 | `viewer/useFrames.ts`        | Loads the frame list, then pictures, a few at a time       |
 | `viewer/usePlayer.ts`        | Current frame, play/pause, speed                           |
-| `viewer/BlinkCanvas.tsx`     | Canvas drawing, pan, zoom, marker, scale bar, compass      |
+| `viewer/BlinkCanvas.tsx`     | Canvas drawing, smooth pan/zoom/pinch, RA/Dec readout, marker, scale bar, compass |
+| `viewer/imageOps.ts`, `useImageOps.ts` | Add / subtract frames (difference against median, previous, first or a pinned frame) |
 | `viewer/PlayerControls.tsx`  | Buttons, scrubber, frame info                              |
-| `components/Controls.tsx`    | Search box, target picker, band, field of view             |
+| `components/Controls.tsx`    | Search box, target picker, band, field of view (`FovPicker`) |
+| `components/SkyNavigator.tsx`| All-sky locator map (click to jump) and N/S/E/W step buttons |
+| `components/ImageOpsPanel.tsx`, `EmbedPanel.tsx` | Add/subtract settings; share link and iframe code |
 | `components/StatusBar.tsx`   | Latest-data indicator, loading progress, refresh           |
 | `lib/sky.ts`                 | Coordinate maths and formatting                            |
 
@@ -112,13 +116,18 @@ are limited to 4 at a time and retried with a short wait.
 - Remember proper motion: move Gaia positions to each frame's date
   (`frame.mjd`) so fast stars line up.
 
-### 3. Controls (FOV, add/subtract, URL embedding)
+### 3. Controls (done: navigation, FOV, add/subtract, URL embedding)
 
-- New URL parameters go in `ViewState` in `urlState.ts` (parse and write).
-  Good candidates: `frame`, `fps`, `invert`, `zoom`.
-- Add/subtract: `format=fits` returns the aligned float data, or do it on the
-  server with two `AlignedImage`s and `render.to_png()`.
-- `embed=1` already hides the header, controls and side panel.
+- URL parameters: `ra`, `dec` (degrees, or `8h55m10.8s` / `-7d14m42s`), `fov`
+  (1 to 60 arcmin), `band`, `frame` (obs_id, opens paused on it), `fps`,
+  `play=0`, `zoom`, `op=diff|sum` with `ref=median|mean|prev|first|<obs_id>`,
+  `gain`, `n`, `invert`, `marker=0`, `embed=1`, `controls=0`. Moving to a new
+  place adds a browser history entry, everything else updates the current one.
+- Add/subtract runs in the browser on the PNGs, after undoing the asinh
+  stretch. If `render.stretch()` changes, update `ASINH_A` in `imageOps.ts`.
+- Embedding: `embed=1` shows only the picture and player. The host page can
+  steer it with `postMessage({type: "spherex-blink:set", ra, dec, fov})` and
+  `spherex-blink:play|pause|step`, and receives `spherex-blink:view` messages.
 
 ### 4. Polish and deploy
 

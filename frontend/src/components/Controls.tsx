@@ -1,7 +1,8 @@
 // Top controls: where to look (search box, test targets) and how (band, field of view).
 import { useEffect, useState } from "react";
 import { fetchTargets, resolveQuery, type BandInfo, type Target } from "../api/client";
-import { FOV_CHOICES, type ViewState } from "../state/urlState";
+import { type ViewState } from "../state/urlState";
+import FovPicker from "./FovPicker";
 
 interface Props {
   state: ViewState;
@@ -78,14 +79,7 @@ export default function Controls({ state, bands, onChange }: Props) {
         </select>
       </label>
 
-      <label>
-        Field of view
-        <select value={state.fov} onChange={(e) => onChange({ fov: Number(e.target.value) })}>
-          {[...new Set([...FOV_CHOICES, state.fov])].sort((a, b) => a - b).map((f) => (
-            <option key={f} value={f}>{f}′</option>
-          ))}
-        </select>
-      </label>
+      <FovPicker value={state.fov} onChange={(fov) => onChange({ fov })} />
 
       {error && <p className="error" role="alert">{error}</p>}
       {current && <p className="note">{current.note}</p>}
