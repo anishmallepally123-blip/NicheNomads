@@ -26,6 +26,7 @@ export interface Marker {
 export const LAYER_STYLE: Record<LayerKey, { color: string; label: string }> = {
   gaia: { color: "#4dd8ff", label: "Gaia DR3" },
   wise: { color: "#ff9f43", label: "CatWISE2020" },
+  ices: { color: "#7cf2a6", label: "SPLICES ice sources" },
   movers: { color: "#ff5cdb", label: "Known fast movers" },
 };
 const FAST_COLOR = "#ff5cdb";
@@ -105,7 +106,15 @@ export function drawMarkers(
     }
 
     ctx.beginPath();
-    if (m.layer === "wise") {
+    if (m.layer === "ices") {
+      // diamonds for ice targets
+      const r = m.radius * 1.2;
+      ctx.moveTo(m.x, m.y - r);
+      ctx.lineTo(m.x + r, m.y);
+      ctx.lineTo(m.x, m.y + r);
+      ctx.lineTo(m.x - r, m.y);
+      ctx.closePath();
+    } else if (m.layer === "wise") {
       // squares for WISE so overlapping Gaia circles stay readable
       const r = m.radius * 0.9;
       ctx.rect(m.x - r, m.y - r, 2 * r, 2 * r);

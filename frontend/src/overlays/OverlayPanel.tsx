@@ -7,6 +7,7 @@ import Info from "../glossary/Info";
 const HELP: Record<LayerKey, string> = {
   gaia: "Optical stars with precise motions (ESA Gaia, 3rd release).",
   wise: "Infrared sources from NASA WISE, including cold brown dwarfs Gaia cannot see.",
+  ices: "Stars seen through icy dust that SPHEREx targets to measure space ices.",
   movers: "Famous fast movers the catalogues miss, such as WISE 0855.",
 };
 
@@ -30,7 +31,7 @@ export default function OverlayPanel({ overlays }: { overlays: OverlaysState }) 
               <input type="checkbox" checked={enabled[key]} onChange={(e) => setEnabled(key, e.target.checked)} />
               <span className={`ov-swatch ov-swatch-${key}`} style={{ borderColor: LAYER_STYLE[key].color }} />
               {LAYER_STYLE[key].label}
-              <Info term={key} />
+              <Info term={key === "ices" ? "splices" : key} />
               {detail && <span className="muted overlay-count">{detail}</span>}
             </label>
             {enabled[key] && st?.error && (

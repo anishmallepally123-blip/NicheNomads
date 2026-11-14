@@ -20,6 +20,7 @@ import { fetchTargets, type Target } from "./api/client";
 import { formatDec, formatFov, formatRa } from "./lib/sky";
 import { useMasonry } from "./lib/masonry";
 import DataPanel from "./data/DataPanel";
+import ProductsPanel from "./data/ProductsPanel";
 import { AladinPanel, OverlayPanel, SourceCard, mjdNow, useOverlayCanvas, useOverlays } from "./overlays";
 import Info from "./glossary/Info";
 import GlossaryPanel from "./glossary/GlossaryPanel";
@@ -44,7 +45,7 @@ export default function App() {
     () => ({ ra: state.ra, dec: state.dec, fov: state.fov }),
     [state.ra, state.dec, state.fov],
   );
-  const frames = useFrames(view, state.band, IMAGE_SIZE, reloadKey);
+  const frames = useFrames(view, state.band, IMAGE_SIZE, reloadKey, state.plane);
   const player = usePlayer(frames.frames.length, { fps: state.fps, playing: state.play });
   const current = frames.frames[player.index] ?? null;
   const ops = useImageOps(frames.frames, player.index, state.op, state.ref, state.n, state.gain);
@@ -241,6 +242,9 @@ export default function App() {
           </section>
           <section className="card">
             <MoverPanel movers={movers} frames={frames.frames} loading={frames.loading} onCentre={(ra, dec) => update({ ra, dec })} />
+          </section>
+          <section className="card">
+            <ProductsPanel plane={state.plane} frame={current} view={view} onChange={update} />
           </section>
           <section className="card">
             <h2>Add / subtract images<Info term="difference" /></h2>

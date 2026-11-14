@@ -12,7 +12,7 @@ import type { Player } from "../viewer/usePlayer";
 import { absoluteUrl, parseUrl, toQuery, type UpdateFn, type ViewState } from "./urlState";
 
 const SETTABLE: (keyof ViewState)[] = [
-  "ra", "dec", "fov", "band", "zoom", "op", "ref", "n", "gain", "invert", "marker", "controls",
+  "ra", "dec", "fov", "band", "zoom", "op", "plane", "ref", "n", "gain", "invert", "marker", "controls",
 ];
 
 export function useEmbedBridge(

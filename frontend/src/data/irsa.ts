@@ -121,6 +121,30 @@ export function framesFromSia(xml: string): Frame[] {
   return [...best.values()].sort((a, b) => a.mjd - b.mjd || a.detector - b.detector);
 }
 
+/** Other SPHEREx products covering a position, such as the DR1 all-sky
+ *  spectral cube tile (all 102 colours stacked, one file per 1.8° patch). */
+export interface Product {
+  collection: string;
+  type: string; // "cube", ...
+  access_url: string;
+  size_kb: number | null;
+}
+
+export function productsFromSia(xml: string): Product[] {
+  return parseVotable(xml)
+    .filter((r) => r.dataproduct_type !== "image" && r.access_url)
+    .map((r) => ({
+      collection: r.obs_collection,
+      type: r.dataproduct_type,
+      access_url: r.access_url,
+      size_kb: Number(r.access_estsize) || null,
+    }));
+}
+
+const products = new Map<string, Product[]>();
+/** Products found by the last image search at this position (see searchFrames). */
+export const productsAt = (ra: number, dec: number) => products.get(`${ra.toFixed(5)},${dec.toFixed(5)}`) ?? [];
+
 // Searches are reused for an hour, then IRSA is asked again so new SPHEREx
 // observations (and new releases: we search by instrument, not collection)
 // appear without any code change.
@@ -138,7 +162,9 @@ export async function searchFrames(ra: number, dec: number, refresh = false, sig
   try {
     const res = await fetchRetry(url, signal);
     if (!res.ok) throw new Error(`IRSA image search failed (${res.status})`);
-    frames = framesFromSia(await res.text());
+    const xml = await res.text();
+    frames = framesFromSia(xml);
+    products.set(key, productsFromSia(xml));
   } catch (err) {
     if (hit && !signal?.aborted) return hit.frames; // IRSA down: the old answer is still useful
     throw err;

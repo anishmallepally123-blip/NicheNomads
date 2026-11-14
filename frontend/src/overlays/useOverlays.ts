@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchCatalog, type CatalogResult, type CatalogSource, type LayerKey } from "./api";
 
-export const LAYER_KEYS: LayerKey[] = ["gaia", "wise", "movers"];
+export const LAYER_KEYS: LayerKey[] = ["gaia", "wise", "ices", "movers"];
 
 export interface LayerStatus {
   loading: boolean;
@@ -29,7 +29,7 @@ export interface OverlaysState {
 }
 
 const STORE_KEY = "spherex-overlays";
-const DEFAULTS = { enabled: { gaia: false, wise: false, movers: true }, followMotion: true };
+const DEFAULTS = { enabled: { gaia: false, wise: false, ices: false, movers: true }, followMotion: true };
 
 function load(): typeof DEFAULTS {
   try {

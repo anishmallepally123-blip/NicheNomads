@@ -110,6 +110,7 @@ export function alignCutout(
   fovDeg: number,
   size: number,
   subtractZodi = true,
+  plane: "sky" | "zodi" | "noise" | "flags" = "sky",
 ): AlignedImage {
   const { image, zodi, flags, variance } = cut;
   const wcs = new SipWcs(image.header);
@@ -130,7 +131,21 @@ export function alignCutout(
     if (bad) nBad++;
     science[i] = bad ? NaN : v;
   }
-  const display = nBad ? fillBadPixels(science, nx, ny) : science;
+  let display = nBad ? fillBadPixels(science, nx, ny) : science;
+  // The other planes of the same file, shown instead of the sky on request.
+  if (plane !== "sky") {
+    const same = (h?: Hdu) => (h && h.nx === nx && h.ny === ny ? h : null);
+    const other = new Float32Array(n);
+    const z = same(zodi);
+    const va = same(variance);
+    for (let i = 0; i < n; i++) {
+      if (plane === "zodi") other[i] = z ? z.data[i] : NaN;
+      else if (plane === "noise") other[i] = va && va.data[i] > 0 ? Math.sqrt(va.data[i]) : NaN;
+      // flags: 1 where a problem flag is set, 0 for usable pixels
+      else other[i] = fv ? ((fv[i] & mask) !== 0 ? 1 : 0) : NaN;
+    }
+    display = other;
+  }
 
   let noise: number | null = null;
   if (variance && variance.data.length === n) {
@@ -202,6 +217,18 @@ export function stretch(data: Float32Array, mode = "asinh", lowSigma = 2, highSi
   for (const v of data) if (Number.isFinite(v)) finite.push(v);
   const out = new Float32Array(data.length);
   if (!finite.length) return out;
+  if (mode === "linear") {
+    // Smooth maps (background, noise, flags): darkest to brightest, 1% clipped.
+    const s = Float64Array.from(finite).sort();
+    const lo = s[Math.floor(s.length * 0.01)];
+    const hi = s[Math.ceil(s.length * 0.99) - 1];
+    const span = hi - lo || 1;
+    for (let i = 0; i < data.length; i++) {
+      const v = data[i];
+      if (Number.isFinite(v)) out[i] = Math.min(1, Math.max(0, (v - lo) / span));
+    }
+    return out;
+  }
   const median = (a: number[]) => {
     const s = Float64Array.from(a).sort();
     const m = s.length >> 1;
