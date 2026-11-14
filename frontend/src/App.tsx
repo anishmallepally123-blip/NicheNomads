@@ -7,6 +7,7 @@ import { useFrames } from "./viewer/useFrames";
 import { usePlayer } from "./viewer/usePlayer";
 import { useUrlState } from "./state/urlState";
 import { formatDec, formatRa } from "./lib/sky";
+import { AladinPanel, OverlayPanel, SourceCard, mjdNow, useOverlayCanvas, useOverlays } from "./overlays";
 
 const IMAGE_SIZE = 384; // pixels requested from the backend per frame
 
@@ -23,6 +24,9 @@ export default function App() {
   const frames = useFrames(view, state.band, IMAGE_SIZE, reloadKey);
   const player = usePlayer(frames.frames.length);
   const current = frames.frames[player.index] ?? null;
+  const overlays = useOverlays(view);
+  const frameMjd = useMemo(() => current?.mjd ?? mjdNow(), [current]);
+  const overlayCanvas = useOverlayCanvas(overlays, view, frameMjd);
 
   // Keyboard: space = play/pause, arrows = step
   useEffect(() => {
@@ -61,7 +65,19 @@ export default function App() {
             invert={invert}
             showMarker={showMarker}
             onRecenter={(ra, dec) => update({ ra, dec })}
-          />
+            drawExtra={overlayCanvas.draw}
+            onPick={overlayCanvas.pick}
+          >
+            {overlays.selected && (
+              <SourceCard
+                selection={overlays.selected}
+                layer={overlays.results[overlays.selected.layer]}
+                mjd={frameMjd}
+                onClose={() => overlays.setSelected(null)}
+                onCentre={(ra, dec) => update({ ra, dec })}
+              />
+            )}
+          </BlinkCanvas>
           <PlayerControls player={player} frames={frames.frames} />
         </section>
 
@@ -83,6 +99,7 @@ export default function App() {
             <input type="checkbox" checked={invert} onChange={(e) => setInvert(e.target.checked)} />
             Invert colours
           </label>
+          <OverlayPanel overlays={overlays} />
           <p className="hint">
             Scroll to zoom, drag to pan, double-click to re-centre. Space plays or pauses, arrow keys step
             one frame.
@@ -97,6 +114,7 @@ export default function App() {
           >
             Copy link to this view
           </button>
+          <AladinPanel ra={state.ra} dec={state.dec} fov={state.fov} />
         </aside>
       </main>
 

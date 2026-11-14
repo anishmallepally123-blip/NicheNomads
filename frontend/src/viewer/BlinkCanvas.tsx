@@ -1,7 +1,8 @@
 // The picture itself: draws one frame on a canvas with pan and zoom.
-// Extension point: overlays (Gaia, WISE, ...) should draw in drawOverlays(),
-// using skyToCanvas-style math from the `geom` object.
-import { useCallback, useEffect, useRef, useState } from "react";
+// Extension point: built-in marks (reticle, scale bar, compass) draw in
+// drawOverlays(). Other layers (catalogue overlays) plug in through the
+// `drawExtra` and `onPick` props, which get the same `geom` object.
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { LoadedFrame, View } from "../api/client";
 import { offsetToSky } from "../lib/sky";
 
@@ -12,6 +13,12 @@ interface Props {
   showMarker: boolean;
   /** Called when the user asks to re-centre the view on a new sky position. */
   onRecenter: (ra: number, dec: number) => void;
+  /** Extra drawing on top of the picture, under the built-in marks. */
+  drawExtra?: (ctx: CanvasRenderingContext2D, geom: Geom) => void;
+  /** A click (not a drag) on the canvas, in canvas pixels. */
+  onPick?: (x: number, y: number, geom: Geom) => void;
+  /** Rendered on top of the canvas, e.g. an info card. */
+  children?: ReactNode;
 }
 
 interface Transform {
@@ -23,7 +30,7 @@ interface Transform {
 const HOME: Transform = { zoom: 1, x: 0, y: 0 };
 const MAX_ZOOM = 12;
 
-export default function BlinkCanvas({ frame, view, invert, showMarker, onRecenter }: Props) {
+export default function BlinkCanvas({ frame, view, invert, showMarker, onRecenter, drawExtra, onPick, children }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [side, setSide] = useState(512);
@@ -84,8 +91,10 @@ export default function BlinkCanvas({ frame, view, invert, showMarker, onRecente
       ctx.drawImage(frame.image, left, top, drawn, drawn);
       ctx.filter = "none";
     }
-    drawOverlays(ctx, { side, centerX: side / 2 + t.x, centerY: side / 2 + t.y, arcsecPerCanvasPx }, showMarker);
-  }, [frame, side, t, invert, showMarker, arcsecPerCanvasPx]);
+    const geom = { side, centerX: side / 2 + t.x, centerY: side / 2 + t.y, arcsecPerCanvasPx };
+    drawExtra?.(ctx, geom);
+    drawOverlays(ctx, geom, showMarker);
+  }, [frame, side, t, invert, showMarker, arcsecPerCanvasPx, drawExtra]);
 
   const onWheel = (e: React.WheelEvent) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -113,7 +122,15 @@ export default function BlinkCanvas({ frame, view, invert, showMarker, onRecente
     d.py = e.clientY;
     setT((prev) => clampPan({ ...prev, x: prev.x + dx, y: prev.y + dy }, side));
   };
-  const onPointerUp = () => (drag.current = null);
+  const onPointerUp = (e: React.PointerEvent) => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d || d.moved || !onPick || e.type !== "pointerup") return;
+    const rect = canvasRef.current!.getBoundingClientRect();
+    onPick(e.clientX - rect.left, e.clientY - rect.top, {
+      side, centerX: side / 2 + t.x, centerY: side / 2 + t.y, arcsecPerCanvasPx,
+    });
+  };
 
   const onDoubleClick = (e: React.MouseEvent) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -159,6 +176,7 @@ export default function BlinkCanvas({ frame, view, invert, showMarker, onRecente
           Load images centred here
         </button>
       )}
+      {children}
     </div>
   );
 }
@@ -173,7 +191,7 @@ function clampPan(t: Transform, side: number): Transform {
   };
 }
 
-interface Geom {
+export interface Geom {
   side: number;
   centerX: number; // canvas position of the view's RA/Dec
   centerY: number;

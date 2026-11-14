@@ -101,16 +101,25 @@ are limited to 4 at a time and retried with a short wait.
   square and black blobs in the pictures are flagged pixels that are not
   masked yet.
 
-### 2. Overlays (Gaia DR3, WISE, Aladin)
+### 2. Overlays (Gaia DR3, WISE, Aladin) — done
 
-- Draw in `drawOverlays()` in `BlinkCanvas.tsx`. It gets the canvas position
-  of the view centre and the arcsec-per-pixel scale. `lib/sky.ts` has the
-  matching projection maths (add the forward direction, sky to offset).
-- Fetch catalogues in a new backend file (for example `catalogs.py`) and
-  expose them as `/api/overlays/gaia?ra&dec&fov`. Keep network code out of
-  `cutouts.py`.
-- Remember proper motion: move Gaia positions to each frame's date
-  (`frame.mjd`) so fast stars line up.
+- Backend: `catalogs.py` cone-searches IRSA's Gator service (about 1 s; IRSA
+  TAP has the same tables but takes 20 to 30 s). Layers: Gaia DR3
+  (`gaia_dr3_source`, epoch J2016.0), CatWISE2020 (`catwise_2020`, motion-fit
+  epoch MJD 57170) and a short hand-made list of famous fast movers that the
+  catalogues miss or split (WISE 0855). Routes live in `overlays_api.py`:
+  `GET /api/overlays/{gaia|wise|movers}?ra&dec&fov`. Answers are cached on
+  disk for a week. Wider views ask for brighter stars only (`MAG_LIMITS`).
+- CatWISE has many fake "movers" around bright or fast stars (pieces of the
+  star's halo). Sources whose motion fit is bad (`rchi2_pm > 10`) or below 3
+  sigma come back with `pm_ok: false` and are drawn where they were measured.
+- Frontend: everything is in `frontend/src/overlays/`. `motion.ts` moves each
+  source to the date of the frame on screen and projects it (forward of
+  `offsetToSky`). BlinkCanvas only exposes three hooks: `drawExtra`, `onPick`
+  and `children` (the info card).
+- Layer choices are remembered in localStorage, not the URL (yet).
+- "Compare with other sky surveys" loads Aladin Lite 3.8.2 from jsDelivr only
+  when opened.
 
 ### 3. Controls (FOV, add/subtract, URL embedding)
 
