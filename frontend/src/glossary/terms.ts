@@ -88,6 +88,10 @@ export const TERMS = {
     word: "Spectrum",
     text: "How bright something is at each colour (wavelength). It can tell you how hot an object is and what it is made of.",
   },
+  lightcurve: {
+    word: "Light curve",
+    text: "A chart of how bright one star is on different days. A flat line means a steady star. Ups and downs mean it is pulsing, flaring or being dimmed by dust.",
+  },
   catalogue: {
     word: "Catalogue overlay",
     text: "Markers drawn on the picture from a list of already-known stars and galaxies, so you can tell which dots are known and which might be new.",

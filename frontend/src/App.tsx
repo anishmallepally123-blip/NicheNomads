@@ -20,6 +20,7 @@ import { fetchTargets, type Target } from "./api/client";
 import { formatDec, formatFov, formatRa } from "./lib/sky";
 import { useMasonry } from "./lib/masonry";
 import DataPanel from "./data/DataPanel";
+import { LightCurvePanel, useCanvasExtras, useLightCurve } from "./lightcurve";
 import { AladinPanel, OverlayPanel, SourceCard, mjdNow, useOverlayCanvas, useOverlays } from "./overlays";
 import Info from "./glossary/Info";
 import GlossaryPanel from "./glossary/GlossaryPanel";
@@ -62,6 +63,9 @@ export default function App() {
     },
     [drawOverlays, drawMovers],
   );
+  const lightCurve = useLightCurve(view);
+  const canvasLayers = useMemo(() => ({ draw: drawExtra, pick: overlayCanvas.pick }), [drawExtra, overlayCanvas.pick]);
+  const canvasExtras = useCanvasExtras(canvasLayers, lightCurve);
 
   // Frame from the URL: keep the paused player on that exposure while frames
   // are still arriving (new ones can be inserted before it in time order).
@@ -182,8 +186,8 @@ export default function App() {
               onRecenter={(ra, dec) => update({ ra, dec })}
               onLoadView={(ra, dec, fov) => update({ ra, dec, fov })}
               maxSide={maxSide}
-              drawExtra={drawExtra}
-              onPick={overlayCanvas.pick}
+              drawExtra={canvasExtras.draw}
+              onPick={canvasExtras.pick}
             >
               {overlays.selected && (
                 <SourceCard
@@ -248,6 +252,9 @@ export default function App() {
           </section>
           <section className="card">
             <OverlayPanel overlays={overlays} />
+          </section>
+          <section className="card">
+            <LightCurvePanel lc={lightCurve} bands={(frames.list?.bands ?? []).map((b) => b.detector)} />
           </section>
           <section className="card">
             <DataPanel view={view} band={state.band} frame={current} playing={player.playing} />
