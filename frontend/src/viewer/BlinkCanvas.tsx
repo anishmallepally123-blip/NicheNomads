@@ -2,9 +2,10 @@
 // (smooth wheel and button zoom, drag with a little glide, pinch on touch,
 // keyboard), a live RA/Dec readout under the pointer, and a button to fetch
 // fresh images for whatever area is on screen.
-// Extension point: overlays (Gaia, WISE, ...) should draw in drawOverlays(),
-// using skyToCanvas-style math from the `geom` object.
-import { useCallback, useEffect, useRef, useState } from "react";
+// Extension point: built-in marks (reticle, scale bar, compass) draw in
+// drawOverlays(). Other layers (catalogue overlays) plug in through the
+// `drawExtra` and `onPick` props, which get the same `geom` object.
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { LoadedFrame, View } from "../api/client";
 import { formatDec, formatFov, formatRa, offsetToSky } from "../lib/sky";
 import { FOV_MAX, FOV_MIN, ZOOM_MAX, ZOOM_MIN } from "../state/urlState";
@@ -26,6 +27,12 @@ interface Props {
   onLoadView?: (ra: number, dec: number, fov: number) => void;
   /** Upper limit for the canvas side in CSS pixels (embeds with little height). */
   maxSide?: number;
+  /** Extra drawing on top of the picture, under the built-in marks. */
+  drawExtra?: (ctx: CanvasRenderingContext2D, geom: Geom) => void;
+  /** A click (not a drag) on the canvas, in canvas pixels. */
+  onPick?: (x: number, y: number, geom: Geom) => void;
+  /** Rendered on top of the canvas, e.g. an info card. */
+  children?: ReactNode;
 }
 
 interface Transform {
@@ -52,6 +59,9 @@ export default function BlinkCanvas({
   onRecenter,
   onLoadView,
   maxSide,
+  drawExtra,
+  onPick,
+  children,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -192,8 +202,10 @@ export default function BlinkCanvas({
       ctx.strokeRect(left, top, drawn, drawn);
       ctx.setLineDash([]);
     }
-    drawOverlays(ctx, { side, centerX: side / 2 + t.x, centerY: side / 2 + t.y, arcsecPerCanvasPx }, showMarker);
-  }, [frame, image, side, t, invert, showMarker, arcsecPerCanvasPx]);
+    const geom = { side, centerX: side / 2 + t.x, centerY: side / 2 + t.y, arcsecPerCanvasPx };
+    drawExtra?.(ctx, geom);
+    drawOverlays(ctx, geom, showMarker);
+  }, [frame, image, side, t, invert, showMarker, arcsecPerCanvasPx, drawExtra]);
 
   // ---- zoom helpers ------------------------------------------------------
   /** Zoom by k around a canvas point given relative to the canvas centre. */
@@ -286,6 +298,15 @@ export default function BlinkCanvas({
     if (pointers.current.size > 0) return;
     const d = drag.current;
     drag.current = null;
+    // a click without dragging: let overlays pick a marker
+    if (d && !d.moved && onPick && e.type === "pointerup") {
+      const rect = canvasRef.current!.getBoundingClientRect();
+      const cur = tRef.current;
+      onPick(e.clientX - rect.left, e.clientY - rect.top, {
+        side, centerX: side / 2 + cur.x, centerY: side / 2 + cur.y,
+        arcsecPerCanvasPx: (view.fov * 60) / (side * cur.zoom),
+      });
+    }
     // a short glide after a flick, like a map
     if (d && d.moved && performance.now() - d.time < 80 && Math.hypot(d.vx, d.vy) > 0.15) {
       const cur = tRef.current;
@@ -382,6 +403,7 @@ export default function BlinkCanvas({
           {loadLabel}
         </button>
       )}
+      {children}
     </div>
   );
 }
@@ -396,7 +418,7 @@ function clampPan(t: Transform, side: number): Transform {
   };
 }
 
-interface Geom {
+export interface Geom {
   side: number;
   centerX: number; // canvas position of the view's RA/Dec
   centerY: number;

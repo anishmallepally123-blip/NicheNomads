@@ -14,6 +14,7 @@ import { absoluteUrl, DEFAULT_STATE, useUrlState } from "./state/urlState";
 import { useEmbedBridge } from "./state/embedBridge";
 import { fetchTargets, type Target } from "./api/client";
 import { formatDec, formatFov, formatRa } from "./lib/sky";
+import { AladinPanel, OverlayPanel, SourceCard, mjdNow, useOverlayCanvas, useOverlays } from "./overlays";
 
 const IMAGE_SIZE = 384; // pixels requested from the backend per frame
 
@@ -33,6 +34,9 @@ export default function App() {
   const player = usePlayer(frames.frames.length, { fps: state.fps, playing: state.play });
   const current = frames.frames[player.index] ?? null;
   const ops = useImageOps(frames.frames, player.index, state.op, state.ref, state.n, state.gain);
+  const overlays = useOverlays(view);
+  const frameMjd = useMemo(() => current?.mjd ?? mjdNow(), [current]);
+  const overlayCanvas = useOverlayCanvas(overlays, view, frameMjd);
 
   // Frame from the URL: keep the paused player on that exposure while frames
   // are still arriving (new ones can be inserted before it in time order).
@@ -117,7 +121,19 @@ export default function App() {
               onRecenter={(ra, dec) => update({ ra, dec })}
               onLoadView={(ra, dec, fov) => update({ ra, dec, fov })}
               maxSide={maxSide}
-            />
+              drawExtra={overlayCanvas.draw}
+              onPick={overlayCanvas.pick}
+            >
+              {overlays.selected && (
+                <SourceCard
+                  selection={overlays.selected}
+                  layer={overlays.results[overlays.selected.layer]}
+                  mjd={frameMjd}
+                  onClose={() => overlays.setSelected(null)}
+                  onCentre={(ra, dec) => update({ ra, dec })}
+                />
+              )}
+            </BlinkCanvas>
             <ViewerOverlay
               frames={frames}
               band={state.band}
@@ -156,6 +172,7 @@ export default function App() {
             <input type="checkbox" checked={state.invert} onChange={(e) => update({ invert: e.target.checked })} />
             Invert colours
           </label>
+          <OverlayPanel overlays={overlays} />
 
           <h2>Move around the sky</h2>
           <SkyNavigator ra={state.ra} dec={state.dec} fov={state.fov} targets={targets} onJump={(ra, dec) => update({ ra, dec })} />
@@ -174,6 +191,7 @@ export default function App() {
 
           <h2>Share</h2>
           <EmbedPanel state={state} />
+          <AladinPanel ra={state.ra} dec={state.dec} fov={state.fov} />
         </aside>
       </main>
 
