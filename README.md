@@ -30,6 +30,13 @@ Other commands:
 | `npm run build` | Builds the frontend for production                        |
 | `npm run start` | Runs one server on port 8000 with the site and the API    |
 
+## Put it online
+
+`docker build -t spherex-blink . && docker run -p 8000:8000 spherex-blink`
+gives one server with the site and the API. Ready-made configs for Render,
+Fly.io, Vercel and Netlify, plus Sentry error reporting, are explained in
+[docs/DEPLOY.md](docs/DEPLOY.md).
+
 ## Using it
 
 - Pick a **test target** (WISE 0855, Barnard's Star, Epsilon Indi B, RW Aurigae,

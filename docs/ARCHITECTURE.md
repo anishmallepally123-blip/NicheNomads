@@ -122,6 +122,12 @@ are limited to 4 at a time and retried with a short wait.
 
 ### 4. Polish and deploy
 
+Done: see [DEPLOY.md](DEPLOY.md). Colours and spacing are tokens at the top of
+`styles.css`; reuse them (`--accent`, `--cool`, `--panel`...) for new UI.
+Loading, empty and error states for the viewer live in
+`components/ViewerOverlay.tsx`. Error reporting is in `lib/monitoring.ts`
+(browser) and `backend/app/monitoring.py` (API), both off without a DSN.
+
 - `npm run build` then `npm run start` serves everything from one process on
   one port, which suits most hosts. Set `SPHEREX_CACHE_DIR` to a persistent
   disk if the host has one.
