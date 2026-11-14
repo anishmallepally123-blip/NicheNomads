@@ -42,11 +42,11 @@ export function useLightCurve(view: { ra: number; dec: number }) {
       const x = geom.centerX - o.east / geom.arcsecPerCanvasPx;
       const y = geom.centerY - o.north / geom.arcsecPerCanvasPx;
       ctx.save();
-      ctx.strokeStyle = "#ffb347";
+      ctx.strokeStyle = "#7cc8ff";
       ctx.lineWidth = 2;
       ctx.setLineDash([4, 3]);
       ctx.beginPath();
-      ctx.arc(x, y, 11, 0, 2 * Math.PI);
+      ctx.arc(x, y, 16, 0, 2 * Math.PI);
       ctx.stroke();
       ctx.restore();
     },
