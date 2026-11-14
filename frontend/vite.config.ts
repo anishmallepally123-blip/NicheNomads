@@ -1,12 +1,26 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// During development the frontend runs on :5173 and forwards /api to the
-// FastAPI backend on :8000.
+// The site is fully static. IRSA does not allow direct browser calls (no CORS
+// headers), so /irsa/* is forwarded to IRSA: here by the dev server, in
+// production by one rewrite rule in netlify.toml or vercel.json.
+const irsa = {
+  target: "https://irsa.ipac.caltech.edu",
+  changeOrigin: true,
+  rewrite: (path: string) => path.replace(/^\/irsa/, ""),
+  // The viewer stops reading a cutout once it has the image planes; close the
+  // IRSA connection too, so IRSA does not count it as busy.
+  configure: (proxy: import("http-proxy").Server) => {
+    proxy.on("proxyReq", (proxyReq, _req, res) => {
+      res.on("close", () => {
+        if (!res.writableFinished) proxyReq.destroy();
+      });
+    });
+  },
+};
+
 export default defineConfig({
   plugins: [react()],
-  server: {
-    port: 5173,
-    proxy: { "/api": "http://127.0.0.1:8000" },
-  },
+  server: { port: 5173, proxy: { "/irsa": irsa } },
+  preview: { port: 4173, proxy: { "/irsa": irsa } },
 });

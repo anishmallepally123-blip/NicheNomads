@@ -1,16 +1,12 @@
-// API client: the only file that knows the backend's URLs.
+// Data layer used by the components. Everything runs in the browser: the IRSA
+// search, the FITS cutouts, alignment and display scaling (see src/data/).
+// There is no backend of our own.
 
-const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "";
+import { alignCutout, cutoutSizeDeg, toImageData } from "../data/align";
+import { fetchCutout, searchFrames, type Frame } from "../data/irsa";
+import { resolve, TARGETS, type Target } from "../data/targets";
 
-export interface Target {
-  id: string;
-  name: string;
-  ra: number;
-  dec: number;
-  note: string;
-  suggested_band: number;
-}
-
+export type { Target };
 export interface FrameInfo {
   id: string;
   obs_id: string;
@@ -56,59 +52,53 @@ export interface View {
   fov: number; // arcmin
 }
 
-async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const res = await fetch(BASE + path, { signal });
-  if (!res.ok) {
-    let detail = res.statusText;
-    try {
-      detail = (await res.json()).detail ?? detail;
-    } catch {
-      /* not json */
-    }
-    throw new Error(typeof detail === "string" ? detail : "Request failed");
+export const fetchTargets = async (): Promise<Target[]> => TARGETS;
+
+export const resolveQuery = async (q: string) => resolve(q);
+
+const publicFrame = ({ access_url: _url, ...info }: Frame): FrameInfo => info;
+
+export async function fetchFrames(view: View, band: number, refresh = false, signal?: AbortSignal): Promise<FrameList> {
+  const found = await searchFrames(view.ra, view.dec, refresh, signal);
+  const perBand = new Map<number, BandInfo>();
+  for (const f of found) {
+    const b = perBand.get(f.detector) ?? { detector: f.detector, count: 0, wave_min: f.wave_min, wave_max: f.wave_max };
+    b.count++;
+    perBand.set(f.detector, b);
   }
-  return res.json();
+  const selected = found.filter((f) => !band || f.detector === band);
+  const latest = found.reduce<Frame | null>((a, f) => (!a || f.mjd > a.mjd ? f : a), null);
+  return {
+    ra: view.ra,
+    dec: view.dec,
+    band,
+    count: selected.length,
+    total: found.length,
+    bands: [...perBand.values()].sort((a, b) => a.detector - b.detector),
+    latest: latest ? publicFrame(latest) : null,
+    frames: selected.map(publicFrame),
+  };
 }
 
-export const fetchTargets = () =>
-  getJson<{ targets: Target[] }>("/api/targets").then((r) => r.targets);
-
-export const resolveQuery = (q: string) =>
-  getJson<{ ra: number; dec: number; name: string | null }>(
-    `/api/resolve?q=${encodeURIComponent(q)}`,
-  );
-
-export const fetchFrames = (view: View, band: number, refresh = false, signal?: AbortSignal) =>
-  getJson<FrameList>(
-    `/api/frames?ra=${view.ra}&dec=${view.dec}&band=${band}${refresh ? "&refresh=true" : ""}`,
-    signal,
-  );
-
-export function frameImageUrl(frame: FrameInfo, view: View, size: number, format = "png") {
-  return (
-    `${BASE}/api/frames/${encodeURIComponent(frame.id)}/image` +
-    `?ra=${view.ra}&dec=${view.dec}&fov=${view.fov}&size=${size}&format=${format}`
-  );
-}
-
+/** Download one exposure around the view, align it north-up and turn it into
+ *  a picture. */
 export async function loadFrameImage(
   frame: FrameInfo,
   view: View,
   size: number,
   signal?: AbortSignal,
 ): Promise<LoadedFrame> {
-  const res = await fetch(frameImageUrl(frame, view, size), { signal });
-  if (!res.ok) throw new Error(`Image ${frame.id} failed (${res.status})`);
-  const num = (name: string) => {
-    const v = res.headers.get(name);
-    return v === null ? null : Number(v);
-  };
-  const image = await createImageBitmap(await res.blob());
+  const full = (await searchFrames(view.ra, view.dec, false, signal)).find((f) => f.id === frame.id);
+  if (!full) throw new Error(`Unknown frame ${frame.id} at this position`);
+  const fovDeg = view.fov / 60;
+  const cut = await fetchCutout(full, view.ra, view.dec, cutoutSizeDeg(fovDeg), signal);
+  const aligned = alignCutout(cut, full.detector, view.ra, view.dec, fovDeg, size);
+  const image = await createImageBitmap(toImageData(aligned));
   return {
     ...frame,
     image,
-    wavelength: num("X-Wavelength-Um"),
-    coverage: num("X-Coverage") ?? 1,
-    flaggedFraction: num("X-Flagged-Fraction") ?? 0,
+    wavelength: aligned.wavelength,
+    coverage: aligned.coverage,
+    flaggedFraction: aligned.flaggedFraction,
   };
 }

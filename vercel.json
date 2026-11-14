@@ -3,5 +3,6 @@
   "installCommand": "cd frontend && npm ci",
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/dist",
-  "framework": null
+  "framework": null,
+  "rewrites": [{ "source": "/irsa/:path*", "destination": "https://irsa.ipac.caltech.edu/:path*" }]
 }
