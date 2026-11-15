@@ -83,8 +83,8 @@ export interface CoaddResult {
 export const fetchFrameMeta = (id: string, view: View, signal?: AbortSignal) =>
   frameMeta(id, view.ra, view.dec, view.fov, signal) as Promise<FrameMeta>;
 
-export const fetchSpectrum = (ra: number, dec: number, signal?: AbortSignal) =>
-  spectrum(ra, dec, signal) as Promise<Spectrum>;
+export const fetchSpectrum = (ra: number, dec: number, signal?: AbortSignal, onProgress?: (done: number, total: number) => void) =>
+  spectrum(ra, dec, signal, onProgress) as Promise<Spectrum>;
 
 export async function fetchCoadd(
   view: View,

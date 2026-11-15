@@ -124,3 +124,8 @@
   .home-search-row input, .home-search-row button { border-radius: var(--radius-pill); }
   .home-targets tbody th { padding-left: 0; }
 }
+
+/* Save the five targets for offline use */
+.home-save { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; }
+.home-save button { flex: none; }
+.home-save-note { color: var(--muted, inherit); opacity: 0.8; font-size: 0.9em; min-width: 0; }

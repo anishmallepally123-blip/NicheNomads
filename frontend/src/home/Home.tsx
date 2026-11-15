@@ -10,12 +10,47 @@ import { rememberSearchNote, smartResolve } from "../ai/search";
 import { formatDec, formatRa } from "../lib/sky";
 import "./home.css";
 import AccountButton from "../saved/AccountButton";
+import { demoSavedAt, saveDemo } from "../data/demo";
 
 interface Props {
   onGo: (pos: { ra: number; dec: number; band?: number }) => void;
 }
 
 const Space3D = lazy(() => import("../space3d/Space3D"));
+
+/** One button that downloads the five targets ahead of a talk. */
+function SaveDemo() {
+  const [saved, setSaved] = useState(demoSavedAt);
+  const [progress, setProgress] = useState<{ done: number; total: number; what: string } | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const run = () => {
+    setNote(null);
+    setProgress({ done: 0, total: 0, what: "finding exposures" });
+    saveDemo((done, total, what) => setProgress({ done, total, what }))
+      .then((failed) => {
+        setSaved(demoSavedAt());
+        setNote(failed ? `${failed} pictures could not be downloaded (IRSA busy). Press again to fill the gaps.` : null);
+      })
+      .catch((err) => setNote(String(err?.message ?? err)))
+      .finally(() => setProgress(null));
+  };
+  return (
+    <div className="home-save">
+      <button type="button" onClick={run} disabled={!!progress}>
+        {progress ? "Saving…" : saved ? "Saved for offline, refresh" : "Save these for offline use"}
+      </button>
+      <span className="home-save-note">
+        {progress
+          ? progress.total
+            ? `${progress.done} of ${progress.total} downloaded (${progress.what})`
+            : "Finding every exposure…"
+          : note ?? (saved
+            ? `Downloaded ${new Date(saved).toLocaleString()}. These open without waiting on this browser.`
+            : "Downloads every frame and the spectra for these five once, so they open instantly later (good before a demo). Takes a few minutes.")}
+      </span>
+    </div>
+  );
+}
 
 export default function Home({ onGo }: Props) {
   const [query, setQuery] = useState("");
@@ -107,6 +142,7 @@ export default function Home({ onGo }: Props) {
 
         <section className="home-targets" aria-labelledby="known-movers">
           <h2 id="known-movers">Not sure where to look? Try one of these</h2>
+          <SaveDemo />
           <table>
             <thead>
               <tr>
