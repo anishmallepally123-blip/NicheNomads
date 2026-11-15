@@ -98,7 +98,7 @@ export function useMovers(
       const c = (r.size - 1) / 2;
       const toCanvas = (x: number, y: number) => [g.centerX + (x - c) * k, g.centerY + (y - c) * k];
       ctx.save();
-      ctx.font = "600 12px system-ui, sans-serif";
+      ctx.font = "15px VT323, monospace";
       for (const m of r.candidates) {
         const sel = m.id === state.selected;
         const [x, y] = toCanvas(m.x, m.y);
