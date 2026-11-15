@@ -29,7 +29,6 @@ import Tour from "./tour/Tour";
 import { VIEWER_STEPS } from "./tour/steps";
 import ExplainButton from "./ai/ExplainButton";
 import MoverPanel, { useMovers } from "./movers/MoverPanel";
-import NicheChat from "./chat/NicheChat";
 
 const IMAGE_SIZE = 384; // pixels requested from the backend per frame
 
@@ -123,32 +122,6 @@ export default function App() {
     : wide && stageTop > 0
       ? Math.max(360, winHeight - stageTop - 24)
       : undefined;
-
-  // A short summary of what's on screen for the Niche helper (read when a question is sent).
-  const chatContext = () => {
-    const fr = frames.frames;
-    const mv = movers.state.result;
-    return {
-      ra: +state.ra.toFixed(5),
-      dec: +state.dec.toFixed(5),
-      field_arcmin: +(state.fov * 60).toFixed(1),
-      target: description.curated ? { name: description.curated.name, kind: description.curated.kind } : description.highlight?.name ?? null,
-      band: state.band,
-      frames: fr.length,
-      dates: fr.length ? `${fr[0].date.slice(0, 10)} to ${fr[fr.length - 1].date.slice(0, 10)}` : null,
-      showing: current ? { date: current.date.slice(0, 16), detector: current.detector, microns: `${current.wave_min.toFixed(2)}-${current.wave_max.toFixed(2)}` } : null,
-      playing: player.playing,
-      image_mode: ops.label ?? "single frames",
-      product: state.plane,
-      overlays_on: Object.entries(overlays.enabled).filter(([, on]) => on).map(([k]) => k),
-      selected_source: overlays.selected ? overlays.selected.layer : null,
-      movers: mv
-        ? mv.note ?? mv.candidates.slice(0, 4).map((c) => ({ id: c.id, shift_arcsec: +c.shiftArcsec.toFixed(1), arcsec_per_yr: +c.ratePerYear.toFixed(1), dir: c.direction, note: movers.state.notes[c.id] ?? null }))
-        : "not run",
-      light_curve_at: lightCurve.target.picked ? "picked star" : "field centre",
-      loading: frames.loading,
-    };
-  };
 
   // Keyboard: space = play/pause, arrows = step
   useEffect(() => {
@@ -320,8 +293,6 @@ export default function App() {
           </section>
         </aside>
       </main>
-
-      {!state.embed && <NicheChat context={chatContext} />}
 
       <StatusBar frames={frames} onRefresh={() => setReloadKey((k) => k + 1)} />
 

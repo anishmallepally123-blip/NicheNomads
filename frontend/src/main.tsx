@@ -2,7 +2,6 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { useEffect, useState } from "react";
 import App from "./App";
-import NicheChat from "./chat/NicheChat";
 import Home from "./home/Home";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { initMonitoring, reportError } from "./lib/monitoring";
@@ -15,8 +14,6 @@ window.addEventListener("unhandledrejection", (e) => {
 
 // The homepage shows only on a bare address. Any link with a position (or an
 // embed) opens the viewer directly, so shared links keep working.
-const homeContext = () => ({ page: "homepage: search box for a sky position or object name, list of challenge targets" });
-
 const wantsViewer = () => {
   const p = new URLSearchParams(window.location.search);
   return p.has("ra") || p.has("dec") || p.has("embed");
@@ -31,8 +28,6 @@ function Root() {
   }, []);
   if (viewer) return <App />;
   return (
-    <>
-    <NicheChat context={homeContext} />
     <Home
       onGo={({ ra, dec, band }) => {
         const p = new URLSearchParams({ ra: ra.toFixed(6), dec: dec.toFixed(6) });
@@ -42,7 +37,6 @@ function Root() {
         setViewer(true);
       }}
     />
-    </>
   );
 }
 
