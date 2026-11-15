@@ -198,9 +198,9 @@ export default function MoverPanel({ movers, frames, loading, onCentre }: Props)
           ))}
         </ol>
       )}
-      {state.claude === "busy" && <p className="muted">Asking Claude to describe each one…</p>}
+      {state.claude === "busy" && <p className="muted">Asking Niche to describe each one…</p>}
       {state.claude === "done" && Object.keys(state.notes).length > 0 && (
-        <p className="ai-credit">Notes written by Claude from the numbers above. Treat them as a first guess.</p>
+        <p className="ai-credit">Notes written by Niche from the numbers above. Treat them as a first guess.</p>
       )}
       {(state.claude === "off" || state.claude === "error") && (
         <p className="ai-off">{state.claudeMessage} Detection still works; only the notes are missing.</p>

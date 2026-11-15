@@ -3,10 +3,10 @@
 // hosted without that function, or the key isn't set, calls fail with
 // NotSetUp and the features show a friendly note instead.
 
-export type ClaudeTask = "explain" | "search" | "movers";
+export type ClaudeTask = "search" | "movers";
 
 export class NotSetUp extends Error {
-  constructor(message = "Claude isn't set up on this site yet.") {
+  constructor(message = "Niche isn't set up on this site yet.") {
     super(message);
     this.name = "NotSetUp";
   }
@@ -31,13 +31,13 @@ export async function askClaude(task: ClaudeTask, input: unknown, signal?: Abort
     });
   } catch (err) {
     if (signal?.aborted) throw err;
-    throw new NotSetUp("Couldn't reach the Claude helper.");
+    throw new NotSetUp("Couldn't reach Niche.");
   }
   const isJson = (res.headers.get("content-type") ?? "").includes("json");
   const body = isJson ? ((await res.json().catch(() => ({}))) as { text?: string; error?: string; code?: string }) : {};
   // No function on this host (404, or the HTML page) or no key: not set up.
   if (!isJson || res.status === 404 || body.code === "no_key") throw new NotSetUp(body.error);
-  if (!res.ok || typeof body.text !== "string") throw new Error(body.error ?? `Claude helper said ${res.status}`);
+  if (!res.ok || typeof body.text !== "string") throw new Error(body.error ?? `Niche said ${res.status}`);
   cache.set(key, body.text);
   return body.text;
 }
