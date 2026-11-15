@@ -29,7 +29,7 @@ const OUT = join(dirname(fileURLToPath(import.meta.url)), "../frontend/public/pr
 const VIEW_DEG = (10 / 60) * 1.5 + 0.01;
 const STAMP_DEG = (17 * 6.2) / 3600;
 const BLOCK = 2880;
-const VIEW_MAX = 40;
+const VIEW_MAX = Infinity; // lower this to bundle fewer frames per target
 const STAMP_ALL = 500;
 
 const targets = TARGETS;
