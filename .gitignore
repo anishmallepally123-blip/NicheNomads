@@ -1,0 +1,19 @@
+# Python
+backend/.venv/
+backend/.cache/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Editors / OS
+.DS_Store
+.vscode/
+.idea/
+.env
+.env.*
+!.env.example
+!.env.production
