@@ -17,6 +17,7 @@
 .s3d-cat-movers { --cat: var(--color-accent); }
 .s3d-cat-variables { --cat: var(--color-cool); }
 .s3d-cat-landmarks { --cat: var(--color-muted); }
+.s3d-cat-imap { --cat: var(--color-sky-mw); }
 .s3d i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--cat); box-shadow: 0 0 8px var(--cat); flex: none; }
 
 .s3d-top { position: absolute; top: 0; left: 0; right: 0; padding: var(--space-lg) var(--space-xl); pointer-events: none; }

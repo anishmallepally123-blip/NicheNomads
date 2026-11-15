@@ -3,12 +3,13 @@
 import { TARGETS } from "../data/targets";
 import { curatedNear } from "../describe/curated";
 
-export type Category = "movers" | "variables" | "landmarks";
+export type Category = "movers" | "variables" | "landmarks" | "imap";
 
 export const CATEGORIES: { id: Category; label: string; color: string }[] = [
   { id: "movers", label: "Fast movers", color: "--color-accent" },
   { id: "variables", label: "Variable stars", color: "--color-cool" },
   { id: "landmarks", label: "Familiar stars", color: "--color-muted" },
+  { id: "imap", label: "IMAP: our heliosphere", color: "--color-sky-mw" },
 ];
 
 export interface MapObject {
@@ -21,6 +22,12 @@ export interface MapObject {
   kind: string;
   note: string;
   band?: number;
+  /** Fixed map position, for things that are a direction rather than a star. */
+  at?: [number, number, number];
+  /** Replaces the "N light-years from the Sun" line. */
+  distText?: string;
+  /** Not something to open in the sky viewer. */
+  noViewer?: boolean;
 }
 
 // The curated text gives rounded distances; these are the numbers we plot.
@@ -45,13 +52,55 @@ const landmarks: MapObject[] = [
   { id: "betelgeuse", name: "Betelgeuse", ra: 88.793, dec: 7.407, ly: 550, kind: "Red supergiant", note: "Orion's shoulder. A huge, cool star near the end of its life." },
 ].map((o) => ({ ...o, category: "landmarks" as const }));
 
-export const OBJECTS: MapObject[] = [...targets, ...landmarks];
+/** Ecliptic longitude/latitude (degrees) to RA/Dec (J2000). */
+function eclToEq(lon: number, lat: number): { ra: number; dec: number } {
+  const r = Math.PI / 180, e = 23.4393 * r, l = lon * r, b = lat * r;
+  const ra = Math.atan2(Math.sin(l) * Math.cos(e) - Math.tan(b) * Math.sin(e), Math.cos(l));
+  const dec = Math.asin(Math.sin(b) * Math.cos(e) + Math.cos(b) * Math.sin(e) * Math.sin(l));
+  return { ra: ((ra / r) % 360 + 360) % 360, dec: dec / r };
+}
+
+/** Where the interstellar wind comes from: neutral helium inflow measured by
+ *  IBEX (McComas et al. 2015), ecliptic longitude 255.7 deg, latitude 5.1 deg.
+ *  NASA's IMAP (launched 2025) is measuring it again with IMAP-Lo. */
+export const UPWIND = eclToEq(255.7, 5.1);
+/** Heliosphere nose radius on the map. The real one (~120 au) would be a
+ *  speck, so it is drawn enlarged. */
+export const HELIO_R = 1.1;
+
+const unit = (ra: number, dec: number): [number, number, number] => {
+  const a = (ra * Math.PI) / 180, d = (dec * Math.PI) / 180;
+  return [Math.cos(d) * Math.cos(a), Math.sin(d), -Math.cos(d) * Math.sin(a)];
+};
+export const UPWIND_DIR = unit(UPWIND.ra, UPWIND.dec);
+const along = (k: number) => UPWIND_DIR.map((c) => c * k) as [number, number, number];
+
+const imap: MapObject[] = [
+  {
+    id: "heliosphere", name: "Heliosphere", category: "imap", ...UPWIND, ly: 0.0019, at: along(HELIO_R),
+    kind: "The Sun's bubble (drawn enlarged)", distText: "Nose about 120 au away, 0.002 light-years",
+    note: "The solar wind blows a bubble into the gas between the stars. Its edge, the heliopause, is about 120 au " +
+      "from the Sun on the side facing the interstellar wind, with a long tail behind. NASA's IMAP, parked near " +
+      "the Sun-Earth L1 point, maps this edge by catching neutral atoms that fly in from it.",
+    noViewer: true,
+  },
+  {
+    id: "isnwind", name: "Interstellar wind", category: "imap", ...UPWIND, ly: 0, at: along(4.2),
+    kind: "Direction, not a star", distText: "Neutral helium arriving at about 26 km/s",
+    note: "The Sun moves through a thin interstellar cloud, so its atoms stream past us like a wind. This arrow " +
+      "points to where it comes from (in Ophiuchus, near the galactic centre direction). IMAP-Lo samples these atoms " +
+      "to learn what the cloud is made of. Open it in the viewer to see that patch of sky.",
+  },
+];
+
+export const OBJECTS: MapObject[] = [...targets, ...landmarks, ...imap];
 
 /** Squash distance so 4 and 2,000 light-years both fit on one screen. */
 export const scaleLy = (ly: number) => 6 * Math.log10(1 + ly);
 
 /** Equatorial direction to x/y/z with north up (+y) and RA 0h along +x. */
-export function position(o: { ra: number; dec: number; ly: number }): [number, number, number] {
+export function position(o: { ra: number; dec: number; ly: number; at?: [number, number, number] }): [number, number, number] {
+  if (o.at) return o.at;
   const r = scaleLy(o.ly);
   const a = (o.ra * Math.PI) / 180;
   const d = (o.dec * Math.PI) / 180;

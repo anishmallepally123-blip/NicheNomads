@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { CATEGORIES, OBJECTS, position, scaleLy, type Category, type MapObject } from "./objects";
+import { CATEGORIES, HELIO_R, OBJECTS, UPWIND_DIR, position, scaleLy, type Category, type MapObject } from "./objects";
 import "./space3d.css";
 
 const RINGS = [10, 100, 1000];
@@ -49,7 +49,7 @@ export default function Space3D({ embedded = false, onOpen }: Props) {
   const labels = useRef<Record<string, HTMLElement | null>>({});
   const api = useRef<Api | null>(null);
   const [selected, setSelected] = useState<MapObject | null>(null);
-  const [shown, setShown] = useState<Record<Category, boolean>>({ movers: true, variables: true, landmarks: true });
+  const [shown, setShown] = useState<Record<Category, boolean>>({ movers: true, variables: true, landmarks: true, imap: true });
 
   useEffect(() => {
     const el = mount.current!;
@@ -141,6 +141,27 @@ export default function Space3D({ embedded = false, onOpen }: Props) {
       }
       groups[c.id] = g;
       scene.add(g);
+    }
+
+    // IMAP layer: the heliosphere (enlarged, nose into the wind, long tail
+    // behind) and an arrow showing the interstellar wind flowing in.
+    {
+      const up = new THREE.Vector3(...UPWIND_DIR);
+      const color = cssColor("--color-sky-mw");
+      const geo = keep(new THREE.SphereGeometry(HELIO_R, 40, 24));
+      const pos = geo.attributes.position as THREE.BufferAttribute;
+      const v3 = new THREE.Vector3();
+      for (let i = 0; i < pos.count; i++) {
+        v3.fromBufferAttribute(pos, i);
+        const d = v3.clone().normalize().dot(up);
+        if (d < 0) v3.addScaledVector(up, d * HELIO_R * 1.6); // stretch the downwind side into a tail
+        pos.setXYZ(i, v3.x, v3.y, v3.z);
+      }
+      const shell = new THREE.Mesh(geo, keep(new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide })));
+      const wire = new THREE.Mesh(geo, keep(new THREE.MeshBasicMaterial({ color, wireframe: true, transparent: true, opacity: 0.14 })));
+      const arrow = new THREE.ArrowHelper(up.clone().negate(), up.clone().multiplyScalar(4.2), 2.7, color.getHex(), 0.4, 0.22);
+      groups.imap.add(shell, wire, arrow);
+      disposables.push(arrow);
     }
 
     // Camera flights between objects.
@@ -280,9 +301,10 @@ export default function Space3D({ embedded = false, onOpen }: Props) {
           <div className="s3d-card">
             <p className={`s3d-kind s3d-cat-${selected.category}`}><i /> {selected.kind}</p>
             <h2>{selected.name}</h2>
-            <p className="s3d-dist">{fmtLy(selected.ly)} from the Sun</p>
+            <p className="s3d-dist">{selected.distText ?? `${fmtLy(selected.ly)} from the Sun`}</p>
             <p className="s3d-note">{selected.note}</p>
             <div className="s3d-actions">
+              {!selected.noViewer && (
               <a
                 className="primary"
                 href={viewerHref(selected)}
@@ -290,6 +312,7 @@ export default function Space3D({ embedded = false, onOpen }: Props) {
               >
                 Open in sky viewer
               </a>
+              )}
               <button type="button" onClick={() => pick(null)}>Back to the Sun</button>
             </div>
           </div>
@@ -300,7 +323,7 @@ export default function Space3D({ embedded = false, onOpen }: Props) {
           {visible.map((o) => (
             <li key={o.id}>
               <button type="button" className={`s3d-cat-${o.category}`} aria-current={selected?.id === o.id} onClick={() => pick(o)}>
-                <i /> {o.name} <span>{fmtLy(o.ly).replace(" light-years", " ly")}</span>
+                <i /> {o.name} <span>{o.distText ? "IMAP" : fmtLy(o.ly).replace(" light-years", " ly")}</span>
               </button>
             </li>
           ))}
