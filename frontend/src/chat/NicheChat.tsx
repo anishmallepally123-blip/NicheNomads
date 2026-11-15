@@ -182,7 +182,14 @@ export default function NicheChat({ context }: { context: () => unknown }) {
         <div className="niche-ask-wrap" onClick={() => answerNicheDownload(false)} onKeyDown={(e) => e.key === "Escape" && answerNicheDownload(false)}>
           <div className="niche-ask" role="dialog" aria-modal="true" aria-labelledby="niche-ask-title" onClick={(e) => e.stopPropagation()}>
             <h2 id="niche-ask-title">Download Niche?</h2>
-            <p>Niche runs on your device and downloads once (about 500 MB). Wi-Fi recommended.</p>
+            <p>
+              Niche is the small AI helper behind the chat and plain-English search. It runs on your own device, so
+              nothing you type leaves your browser.
+            </p>
+            <p>
+              The first time, your browser downloads it once (around half a gigabyte), then keeps it for next time.
+              It works best in Chrome or Edge on a laptop. Wi-Fi recommended.
+            </p>
             <div className="niche-ask-buttons">
               <button type="button" onClick={() => answerNicheDownload(false)}>Not now</button>
               <button type="button" className="primary" autoFocus onClick={() => answerNicheDownload(true)}>Download Niche</button>
