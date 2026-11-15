@@ -3,10 +3,10 @@
 // so all this page does is build that URL.
 import Tour from "../tour/Tour";
 import { HOME_STEPS } from "../tour/steps";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { fetchTargets, type Target } from "../api/client";
 import { rememberSearchNote, smartResolve } from "../ai/search";
-import { eclipticToEquatorial, formatDec, formatRa, galacticToEquatorial } from "../lib/sky";
+import { formatDec, formatRa } from "../lib/sky";
 import "./home.css";
 import AccountButton from "../saved/AccountButton";
 
@@ -14,40 +14,16 @@ interface Props {
   onGo: (pos: { ra: number; dec: number; band?: number }) => void;
 }
 
-const W = 720;
-const H = 360;
-const x = (ra: number) => ((360 - ra) / 360) * W;
-const y = (dec: number) => ((90 - dec) / 180) * H;
-
-function skyPath(points: { ra: number; dec: number }[]): string {
-  let d = "";
-  let prevX: number | null = null;
-  for (const p of points) {
-    const px = x(p.ra);
-    const py = y(p.dec);
-    d += prevX === null || Math.abs(px - prevX) > W / 2 ? `M${px.toFixed(1)},${py.toFixed(1)}` : `L${px.toFixed(1)},${py.toFixed(1)}`;
-    prevX = px;
-  }
-  return d;
-}
+const Space3D = lazy(() => import("../space3d/Space3D"));
 
 export default function Home({ onGo }: Props) {
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [targets, setTargets] = useState<Target[]>([]);
-  const [hover, setHover] = useState<{ ra: number; dec: number } | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     fetchTargets().then(setTargets).catch(() => setTargets([]));
-  }, []);
-
-  const guides = useMemo(() => {
-    const steps = Array.from({ length: 361 }, (_, i) => i);
-    return {
-      galactic: skyPath(steps.map((l) => galacticToEquatorial(l, 0))),
-      ecliptic: skyPath(steps.map((l) => eclipticToEquatorial(l))),
-    };
   }, []);
 
   const submit = async (e: React.FormEvent) => {
@@ -69,12 +45,7 @@ export default function Home({ onGo }: Props) {
     }
   };
 
-  const fromEvent = (e: React.MouseEvent<SVGSVGElement>) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    const fx = (e.clientX - r.left) / r.width;
-    const fy = (e.clientY - r.top) / r.height;
-    return { ra: (((360 - fx * 360) % 360) + 360) % 360, dec: Math.max(-89.9, Math.min(89.9, 90 - fy * 180)) };
-  };
+
 
   return (
     <div className="home">
@@ -117,74 +88,21 @@ export default function Home({ onGo }: Props) {
             <p className="home-help">
               Degrees like <code>133.7951 -7.2451</code>, or hours like <code>08h55m10.8s -07d14m42s</code>.
               A name like <code>Barnard's Star</code> works too. You can also just describe it, like{" "}
-              <code>the fastest star in the sky</code>, or click anywhere on the map.
+              <code>the fastest star in the sky</code>, or pick a star in Niche in 3D.
             </p>
             {error && <p className="home-error" role="alert">{error}</p>}
           </form>
           <ol className="home-steps">
-            <li><b>1</b> Type a position or click the map.</li>
+            <li><b>1</b> Type a position or pick a star on the map.</li>
             <li><b>2</b> Press play and let the pictures flip.</li>
             <li><b>3</b> Look for a dot that hops while the rest sit still.</li>
           </ol>
         </section>
 
         <figure className="home-chart">
-          <svg
-            viewBox={`0 0 ${W} ${H}`}
-            role="img"
-            aria-label="Map of the whole sky. Click a spot to look there."
-            onClick={(e) => {
-              const p = fromEvent(e);
-              onGo({ ra: +p.ra.toFixed(5), dec: +p.dec.toFixed(5) });
-            }}
-            onMouseMove={(e) => setHover(fromEvent(e))}
-            onMouseLeave={() => setHover(null)}
-          >
-            <rect width={W} height={H} className="hc-bg" />
-            {[-60, -30, 30, 60].map((d) => (
-              <line key={`d${d}`} x1={0} x2={W} y1={y(d)} y2={y(d)} className="hc-grid" />
-            ))}
-            <line x1={0} x2={W} y1={y(0)} y2={y(0)} className="hc-grid hc-eq" />
-            {Array.from({ length: 11 }, (_, i) => (i + 1) * 2).map((h) => (
-              <g key={`h${h}`}>
-                <line y1={0} y2={H} x1={x(h * 15)} x2={x(h * 15)} className="hc-grid" />
-                <text x={x(h * 15) + 4} y={y(0) - 5} className="hc-label">{h}h</text>
-              </g>
-            ))}
-            {[-60, -30, 30, 60].map((d) => (
-              <text key={`t${d}`} x={4} y={y(d) - 4} className="hc-label">{d > 0 ? `+${d}°` : `${d}°`}</text>
-            ))}
-            <path d={guides.galactic} className="hc-mw" />
-            <path d={guides.ecliptic} className="hc-ecl" />
-            {targets.map((t) => (
-              <g
-                key={t.id}
-                className="hc-target"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onGo({ ra: t.ra, dec: t.dec, band: t.suggested_band });
-                }}
-              >
-                <circle cx={x(t.ra)} cy={y(t.dec)} r={9} className="hc-ring" />
-                <circle cx={x(t.ra)} cy={y(t.dec)} r={2.5} className="hc-dot" />
-                <text x={x(t.ra) + 12} y={y(t.dec) + 4} className="hc-name">{t.name}</text>
-              </g>
-            ))}
-            {hover && (
-              <g pointerEvents="none" className="hc-cursor">
-                <line x1={x(hover.ra)} x2={x(hover.ra)} y1={0} y2={H} />
-                <line x1={0} x2={W} y1={y(hover.dec)} y2={y(hover.dec)} />
-              </g>
-            )}
-          </svg>
-          <figcaption>
-            <span>
-              <i className="hc-key hc-key-mw" /> Milky Way <i className="hc-key hc-key-ecl" /> path of the planets
-            </span>
-            <span className="hc-readout">
-              {hover ? `RA ${formatRa(hover.ra)}  Dec ${formatDec(hover.dec)}` : <span className="hc-hint">Point at the map to read a position</span>}
-            </span>
-          </figcaption>
+          <Suspense fallback={<div className="s3d-loading">Loading Niche in 3D…</div>}>
+            <Space3D embedded onOpen={(o) => onGo({ ra: o.ra, dec: o.dec, band: o.band })} />
+          </Suspense>
         </figure>
 
         <section className="home-targets" aria-labelledby="known-movers">
