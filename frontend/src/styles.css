@@ -43,6 +43,7 @@
   --font-serif: "Newsreader", "Iowan Old Style", Georgia, serif;
   --font-display: "Host Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-body: var(--font-display);
+  --font-retro: "VT323", "Atkinson Hyperlegible Mono", ui-monospace, monospace;
   --font-mono: "Atkinson Hyperlegible Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   --text-xs: 12px;
