@@ -103,6 +103,58 @@ async function savedFetch(url: string, signal?: AbortSignal, maxAgeMs = Infinity
   return new Response(body, { status: res.status, headers });
 }
 
+// ---------------------------------------------------------------- preload
+
+// The challenge targets ship with the site (frontend/public/preload, made by
+// scripts/prefetch-targets.mjs): their image search, default-view cutouts and
+// spectrum stamps load from our own host instead of IRSA. Anything else, and
+// anything newer than the bundle, still comes from IRSA.
+interface Manifest {
+  files: Record<string, string>;
+  epsf: Record<string, string>;
+}
+const PRELOAD = `${import.meta.env.BASE_URL}preload/`;
+let manifest: Promise<Manifest | null> | null = null;
+const loadManifest = () =>
+  (manifest ??= fetch(PRELOAD + "manifest.json")
+    .then((r) => (r.ok ? (r.json() as Promise<Manifest>) : null))
+    .catch(() => null));
+
+async function bundled(name: string | undefined, signal?: AbortSignal): Promise<Response | null> {
+  if (!name) return null;
+  try {
+    const res = await fetch(PRELOAD + name, { signal });
+    if (!res.ok) return null;
+    const buf = new Uint8Array(await res.arrayBuffer());
+    // gzip, unless the host already unpacked it for us
+    if (buf[0] !== 0x1f || buf[1] !== 0x8b) return new Response(buf);
+    return new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip")));
+  } catch (err) {
+    if (signal?.aborted) throw err;
+    return null;
+  }
+}
+
+/** The bundled copy of an IRSA request (path + query after the IRSA host), if any. */
+async function preloaded(irsaPath: string, signal?: AbortSignal) {
+  return bundled((await loadManifest())?.files[irsaPath], signal);
+}
+
+const cutoutQuery = (ra: number, dec: number, sizeDeg: number) =>
+  `?center=${ra.toFixed(6)},${dec.toFixed(6)}deg&size=${sizeDeg.toFixed(5)}deg`;
+
+/** Whether this cutout ships with the site (it then loads almost at once). */
+export async function isPreloaded(frame: Frame, ra: number, dec: number, sizeDeg: number) {
+  const m = await loadManifest();
+  return !!m?.files[frame.access_url.slice(IRSA_ORIGIN.length) + cutoutQuery(ra, dec, sizeDeg)];
+}
+
+/** Bundled ePSF table for a detector (see psfGrid in science.ts). */
+export async function preloadedEpsf(detector: number, signal?: AbortSignal) {
+  const res = await bundled((await loadManifest())?.epsf[detector], signal);
+  return res ? (await readFitsHdus(res, ["EPSF"])).EPSF ?? null : null;
+}
+
 // ---------------------------------------------------------------- search
 
 /** Parse an IVOA VOTable (TABLEDATA) into row objects. */
@@ -184,10 +236,13 @@ export async function searchFrames(ra: number, dec: number, refresh = false, sig
   const hit = searches.get(key);
   if (hit && !refresh && Date.now() - hit.at < SEARCH_TTL_MS) return hit.frames;
   const pos = `circle ${ra.toFixed(6)} ${dec.toFixed(6)} 0.0003`;
-  const url = `${IRSA_BASE}/SIA?POS=${encodeURIComponent(pos)}&INSTRUMENT=SPHEREx&RESPONSEFORMAT=VOTABLE`;
+  const path = `/SIA?POS=${encodeURIComponent(pos)}&INSTRUMENT=SPHEREx&RESPONSEFORMAT=VOTABLE`;
+  const url = IRSA_BASE + path;
   let frames: Frame[];
   try {
-    const res = await savedFetch(url, signal, refresh ? 0 : 12 * SEARCH_TTL_MS);
+    // The bundled list is only used for a first look; "Check for new data"
+    // (refresh) and later searches ask IRSA
+    const res = (!hit && !refresh && (await preloaded(path, signal))) || (await savedFetch(url, signal, refresh ? 0 : 12 * SEARCH_TTL_MS));
     if (!res.ok) throw new Error(`IRSA image search failed (${res.status})`);
     const xml = await res.text();
     frames = framesFromSia(xml);
@@ -240,6 +295,16 @@ export function fetchCutout(
     return { image: h.IMAGE, flags: h.FLAGS, variance: h.VARIANCE, zodi: h.ZODI, epsf: h.EPSF } as Cutout;
   };
   const job = (async () => {
+    const local = !withPsf && frame.access_url.startsWith(IRSA_ORIGIN)
+      ? await preloaded(frame.access_url.slice(IRSA_ORIGIN.length) + cutoutQuery(ra, dec, sizeDeg), signal)
+      : null;
+    if (local) {
+      try {
+        return await read(local);
+      } catch {
+        /* fall back to IRSA */
+      }
+    }
     const store = await disk();
     const hit = await store?.match(diskKey).catch(() => undefined);
     if (hit) {

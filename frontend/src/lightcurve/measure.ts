@@ -2,36 +2,15 @@
 // thousands of exposures, far too many to read in a browser, so above MAX it
 // measures an even sample: every visit and every band keeps its share.
 import { binByChannel, measureFrames, type SpectrumPoint } from "../data/science";
-import { searchFrames, type Frame } from "../data/irsa";
+import { searchFrames } from "../data/irsa";
+import { sample } from "./sample";
 import type { Spectrum } from "../data/api";
 
-const MAX = 360;
-const VISIT_GAP = 6; // days
 
 export interface Measured extends Spectrum {
   available: number; // exposures in the archive at this spot
 }
 
-function sample(frames: Frame[]): Frame[] {
-  if (frames.length <= MAX) return frames;
-  const groups = new Map<string, Frame[]>();
-  for (const d of new Set(frames.map((f) => f.detector))) {
-    const mine = frames.filter((f) => f.detector === d).sort((a, b) => a.mjd - b.mjd);
-    let visit = 0;
-    mine.forEach((f, i) => {
-      if (i && f.mjd - mine[i - 1].mjd > VISIT_GAP) visit++;
-      const key = `${d}:${visit}`;
-      groups.set(key, [...(groups.get(key) ?? []), f]);
-    });
-  }
-  const share = MAX / frames.length;
-  const out: Frame[] = [];
-  for (const g of groups.values()) {
-    const n = Math.min(g.length, Math.max(2, Math.round(g.length * share)));
-    for (let k = 0; k < n; k++) out.push(g[Math.floor(((k + 0.5) * g.length) / n)]);
-  }
-  return out;
-}
 
 const cache = new Map<string, Promise<Measured>>();
 
