@@ -117,7 +117,7 @@ export default function NicheChat({ context }: { context: () => unknown }) {
       const reply = await askClaude("chat", { context: context(), messages: next.slice(-6) });
       setTurns([...next, { role: "assistant", content: reply }]);
     } catch (err) {
-      setNote(err instanceof NotSetUp ? `${err.message} The rest of the site works as normal.` : (err as Error).message);
+      setNote(err instanceof NotSetUp ? "Niche isn't set up on this site yet. The rest of the site works as normal." : (err as Error).message);
     } finally {
       setBusy(false);
     }
@@ -159,7 +159,7 @@ export default function NicheChat({ context }: { context: () => unknown }) {
         <div className="niche-panel" id="niche-panel" role="dialog" aria-label="Ask Niche" style={panelStyle}>
           <div className="niche-head">
             <strong>Niche</strong>
-            <span>asks Claude about this view or SPHEREx</span>
+            <span>answers questions about this view or SPHEREx</span>
             <button type="button" className="niche-close" onClick={() => setOpen(false)} aria-label="Close">×</button>
           </div>
           <div className="niche-log" ref={logRef} aria-live="polite">
