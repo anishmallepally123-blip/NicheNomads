@@ -3,7 +3,7 @@
 // There is no backend of our own.
 
 import { alignCutout, cutoutSizeDeg, toImageData } from "../data/align";
-import { fetchCutout, searchFrames, type Frame } from "../data/irsa";
+import { fetchCutout, isPreloaded, searchFrames, type Frame } from "../data/irsa";
 import { resolve, TARGETS, type Target } from "../data/targets";
 import type { Plane } from "../state/urlState";
 
@@ -80,6 +80,20 @@ export async function fetchFrames(view: View, band: number, refresh = false, sig
     latest: latest ? publicFrame(latest) : null,
     frames: selected.map(publicFrame),
   };
+}
+
+/** Frames in the order to load them: the ones bundled with the site first,
+ *  so they all show at once while the rest come from IRSA. */
+export async function loadOrder(frames: FrameInfo[], view: View): Promise<FrameInfo[]> {
+  const all = await searchFrames(view.ra, view.dec, false);
+  const size = cutoutSizeDeg(view.fov / 60);
+  const local = await Promise.all(
+    frames.map((f) => {
+      const full = all.find((x) => x.id === f.id);
+      return full ? isPreloaded(full, view.ra, view.dec, size) : false;
+    }),
+  );
+  return [...frames.filter((_, i) => local[i]), ...frames.filter((_, i) => !local[i])];
 }
 
 /** Download one exposure around the view, align it north-up and turn it into

@@ -2,7 +2,7 @@
 // at a time. Frames become playable as soon as they arrive.
 import { useEffect, useState } from "react";
 import type { Plane } from "../state/urlState";
-import { fetchFrames, loadFrameImage, type FrameList, type LoadedFrame, type View } from "../api/client";
+import { fetchFrames, loadFrameImage, loadOrder, type FrameList, type LoadedFrame, type View } from "../api/client";
 
 const PARALLEL = 6;
 const MIN_COVERAGE = 0.6; // drop frames where the patch is mostly off the detector
@@ -29,7 +29,7 @@ export function useFrames(view: View, band: number, size: number, reloadKey: num
       const list = await fetchFrames(view, band, reloadKey > 0, abort.signal);
       setState((s) => ({ ...s, list, total: list.frames.length, loading: list.frames.length > 0 }));
 
-      const queue = [...list.frames];
+      const queue = await loadOrder(list.frames, view);
       const worker = async () => {
         for (let info = queue.shift(); info; info = queue.shift()) {
           let frame: LoadedFrame | null = null;
