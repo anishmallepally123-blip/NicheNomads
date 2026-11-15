@@ -6,7 +6,7 @@
 export type Msg = { role: "system" | "user" | "assistant"; content: string };
 
 export interface NicheStatus {
-  phase: "idle" | "loading" | "ready" | "error";
+  phase: "idle" | "ask" | "loading" | "ready" | "error";
   /** Bytes so far and in total while downloading (0 when cached or unknown). */
   loaded: number;
   total: number;
@@ -45,8 +45,51 @@ function friendly(raw: string): string {
   return "Niche couldn't start in this browser. Try a recent Chrome or Edge on a laptop.";
 }
 
+// Ask before the first big download. Once someone says yes the model is in
+// their browser cache, so we remember the answer and don't ask again.
+const OK_KEY = "niche-download-ok";
+const hasOk = () => {
+  try {
+    return localStorage.getItem(OK_KEY) === "yes";
+  } catch {
+    return false;
+  }
+};
+let consent: Promise<boolean> | null = null;
+let answer: ((yes: boolean) => void) | null = null;
+/** Called by the popup (NicheConsent in NicheChat). */
+export function answerNicheDownload(yes: boolean) {
+  if (yes) {
+    try {
+      localStorage.setItem(OK_KEY, "yes");
+    } catch {
+      /* we'll just ask again next visit */
+    }
+  }
+  answer?.(yes);
+  answer = null;
+  consent = null;
+}
+
 /** Start the download (or the load from cache). Safe to call many times. */
-export function loadNiche(): Promise<void> {
+export async function loadNiche(): Promise<void> {
+  if (ready) return ready;
+  if (!hasOk()) {
+    // No popup on this page (the embed view): don't wait for an answer that can't come.
+    if (!listeners.size) throw new NicheUnavailable("Niche isn't available in this view.");
+    consent ??= new Promise<boolean>((resolve) => {
+      answer = resolve;
+      set({ phase: "ask", error: null });
+    });
+    if (!(await consent)) {
+      set({ phase: "idle" });
+      throw new NicheUnavailable("This needs Niche, which isn't downloaded yet.");
+    }
+  }
+  return startNiche();
+}
+
+function startNiche(): Promise<void> {
   if (ready) return ready;
   if (typeof Worker === "undefined" || typeof WebAssembly === "undefined") {
     set({ phase: "error", error: "This browser can't run Niche. The rest of the site works as normal." });

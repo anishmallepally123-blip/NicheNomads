@@ -4,7 +4,7 @@
 // a small model (Qwen3 0.6B) running in this browser; it downloads the first
 // time the chat is opened. Only the last few turns are used, to keep it quick.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { askNiche, loadNiche, NicheUnavailable, nicheStatus, onNicheStatus, STYLE, type Msg, type NicheStatus } from "../ai/niche";
+import { answerNicheDownload, askNiche, loadNiche, NicheUnavailable, nicheStatus, onNicheStatus, STYLE, type Msg, type NicheStatus } from "../ai/niche";
 import "./chat.css";
 
 type Turn = { role: "user" | "assistant"; content: string };
@@ -178,6 +178,26 @@ export default function NicheChat({ context }: { context: () => unknown }) {
         <span className="sr-only">Ask Niche</span>
       </button>
 
+      {model.phase === "ask" && (
+        <div className="niche-ask-wrap" onClick={() => answerNicheDownload(false)} onKeyDown={(e) => e.key === "Escape" && answerNicheDownload(false)}>
+          <div className="niche-ask" role="dialog" aria-modal="true" aria-labelledby="niche-ask-title" onClick={(e) => e.stopPropagation()}>
+            <h2 id="niche-ask-title">Download Niche?</h2>
+            <p>
+              Niche is the small AI helper behind the chat and plain-English search. It runs on your own device, so
+              nothing you type leaves your browser.
+            </p>
+            <p>
+              The first time, your browser downloads it once (around half a gigabyte), then keeps it for next time.
+              It works best in Chrome or Edge on a laptop. Wi-Fi recommended.
+            </p>
+            <div className="niche-ask-buttons">
+              <button type="button" onClick={() => answerNicheDownload(false)}>Not now</button>
+              <button type="button" className="primary" autoFocus onClick={() => answerNicheDownload(true)}>Download Niche</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!open && model.phase === "loading" && (
         <div className="niche-toast niche-load" role="status">
           <span>{model.total ? `Downloading Niche for plain-English search: ${mb(model.loaded)} of ${mb(model.total)} MB. Only the first time.` : "Starting Niche…"}</span>
@@ -216,6 +236,12 @@ export default function NicheChat({ context }: { context: () => unknown }) {
                 </span>
                 <progress max={model.total || 1} value={model.total ? model.loaded : undefined} />
               </div>
+            )}
+            {model.phase === "idle" && !busy && (
+              <p className="niche-note">
+                Niche isn't downloaded yet.{" "}
+                <button type="button" className="niche-link" onClick={() => loadNiche().catch(() => undefined)}>Download it</button>
+              </p>
             )}
             {model.phase === "error" && <p className="niche-note">{model.error} The rest of the site works as normal.</p>}
             {note && <p className="niche-note">{note}</p>}
