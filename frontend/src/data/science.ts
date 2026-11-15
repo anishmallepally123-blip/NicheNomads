@@ -5,7 +5,7 @@
 import { alignCutout, cutoutSizeDeg, fillBadPixels, wavelengthAt, type AlignedImage, type Cutout } from "./align";
 import { allChannels, channelOf, globalIndex } from "./bands";
 import type { Hdu } from "./fits";
-import { fetchCutout, searchFrames, type Frame } from "./irsa";
+import { fetchCutout, preloadedEpsf, searchFrames, type Frame } from "./irsa";
 import { badBitmask, flagValues, namesIn, summarize } from "./quality";
 import { SipWcs } from "./wcs";
 
@@ -294,10 +294,13 @@ function parsePsfTable(h: Hdu): PsfGrid {
 function psfGrid(frame: Frame, ra: number, dec: number, signal?: AbortSignal): Promise<PsfGrid> {
   let job = psfGrids.get(frame.detector);
   if (!job) {
-    job = fetchCutout(frame, ra, dec, STAMP_DEG, signal, true).then((c) => {
-      if (!c.epsf?.raw) throw new Error("No PSF table in this file");
-      return parsePsfTable(c.epsf);
-    });
+    job = preloadedEpsf(frame.detector, signal)
+      .catch(() => null)
+      .then((h) => h ?? fetchCutout(frame, ra, dec, STAMP_DEG, signal, true).then((c) => c.epsf))
+      .then((h) => {
+        if (!h?.raw) throw new Error("No PSF table in this file");
+        return parsePsfTable(h);
+      });
     psfGrids.set(frame.detector, job);
     job.catch(() => psfGrids.delete(frame.detector));
   }
