@@ -3,13 +3,14 @@
 import { TARGETS } from "../data/targets";
 import { curatedNear } from "../describe/curated";
 
-export type Category = "movers" | "variables" | "landmarks" | "imap";
+export type Category = "movers" | "variables" | "landmarks" | "imap" | "solar";
 
 export const CATEGORIES: { id: Category; label: string; color: string }[] = [
   { id: "movers", label: "Fast movers", color: "--color-accent" },
   { id: "variables", label: "Variable stars", color: "--color-cool" },
   { id: "landmarks", label: "Familiar stars", color: "--color-muted" },
   { id: "imap", label: "IMAP: our heliosphere", color: "--color-sky-mw" },
+  { id: "solar", label: "Planets", color: "--color-sky-ecliptic" },
 ];
 
 export interface MapObject {
@@ -93,7 +94,41 @@ const imap: MapObject[] = [
   },
 ];
 
-export const OBJECTS: MapObject[] = [...targets, ...landmarks, ...imap];
+// Solar system view: planets on circular orbits from mean J2000 elements, placed
+// for today. Good to a few degrees, which is plenty at this scale.
+// [name, semi-major axis au, mean longitude at J2000 deg, period days, note]
+const PLANETS: [string, number, number, number, string][] = [
+  ["Mercury", 0.387, 252.25, 87.97, "Smallest planet and closest to the Sun. A year lasts 88 days."],
+  ["Venus", 0.723, 181.98, 224.7, "Wrapped in thick clouds, the hottest planet."],
+  ["Earth", 1, 100.46, 365.256, "Home. SPHEREx orbits Earth, and IMAP sits 1.5 million km sunward of it at the L1 point."],
+  ["Mars", 1.524, 355.45, 686.98, "The red planet, half Earth's width."],
+  ["Jupiter", 5.203, 34.4, 4332.59, "The biggest planet, more than twice the mass of all the others together."],
+  ["Saturn", 9.537, 49.94, 10759.22, "The ringed gas giant."],
+  ["Uranus", 19.19, 313.23, 30688.5, "Ice giant that spins on its side."],
+  ["Neptune", 30.07, 304.88, 60182, "Farthest planet, 30 times Earth's distance from the Sun."],
+];
+/** Planet orbit radius on the map (square root so Mercury and Neptune both fit). */
+export const scaleAu = (au: number) => 3 * Math.sqrt(au);
+const OBLIQUITY = 23.4393 * (Math.PI / 180);
+/** Point in the ecliptic plane (longitude deg, map radius) to map x/y/z. */
+export function eclipticPoint(lonDeg: number, r: number): [number, number, number] {
+  const l = (lonDeg * Math.PI) / 180;
+  const x = r * Math.cos(l), ye = r * Math.sin(l);
+  // ecliptic -> equatorial, then into the map's axes (y = north, z = -y_eq)
+  return [x, ye * Math.sin(OBLIQUITY), -ye * Math.cos(OBLIQUITY)];
+}
+const daysSinceJ2000 = (Date.now() - Date.UTC(2000, 0, 1, 12)) / 86400000;
+export const PLANET_ORBITS = PLANETS.map(([, au]) => scaleAu(au));
+const planets: MapObject[] = PLANETS.map(([name, au, l0, period, note]) => {
+  const lon = (l0 + (360 * daysSinceJ2000) / period) % 360;
+  const at = eclipticPoint(lon, scaleAu(au));
+  return {
+    id: name.toLowerCase(), name, category: "solar", ra: 0, dec: 0, ly: au / 63241, at,
+    kind: "Planet", distText: `${au} au from the Sun (${(au * 8.317).toFixed(au < 2 ? 1 : 0)} light-minutes)`, note, noViewer: true,
+  };
+});
+
+export const OBJECTS: MapObject[] = [...targets, ...landmarks, ...imap, ...planets];
 
 /** Squash distance so 4 and 2,000 light-years both fit on one screen. */
 export const scaleLy = (ly: number) => 6 * Math.log10(1 + ly);

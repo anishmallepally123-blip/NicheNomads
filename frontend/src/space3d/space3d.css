@@ -87,3 +87,12 @@
    so the dot and its name make one wide target. */
 .s3d-hit { pointer-events: auto; cursor: pointer; margin: calc(-0.6em - 8px) 0 0 -16px; padding: 8px 10px 8px 28px; border-radius: var(--radius-pill); }
 .s3d-hit:hover { color: var(--color-accent); background: color-mix(in oklab, var(--color-paper-4) 45%, transparent); }
+
+/* Dragging over the title should turn the map, not select text. */
+.s3d { user-select: none; -webkit-user-select: none; }
+.s3d-top h1, .s3d-top p { pointer-events: none; }
+.s3d-cat-solar { --cat: var(--color-sky-ecliptic); }
+.s3d-switch { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-ink); font-weight: 600; }
+.s3d-switch[aria-pressed="true"] { background: var(--color-paper-4); border-color: var(--color-rule-2); color: var(--color-ink); }
+.s3d-top .s3d-filters { pointer-events: none; }
+.s3d-filters > button { pointer-events: auto; }
