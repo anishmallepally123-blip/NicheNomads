@@ -22,12 +22,14 @@ interface Props {
 export default function Tour({ steps, part }: Props) {
   const auth = useAuth();
   const [open, setOpen] = useState(false);
+  // First visit ever: ask before starting the tour instead of jumping straight in.
+  const [welcome, setWelcome] = useState(false);
 
   useEffect(() => {
     if (!auth.ready || auth.session) return;
     const seen = read();
     if (seen === "done" || (part === "home" && seen === "home")) return;
-    const t = setTimeout(() => setOpen(true), 600);
+    const t = setTimeout(() => (seen ? setOpen(true) : setWelcome(true)), 600);
     return () => clearTimeout(t);
   }, [auth.ready, auth.session, part]);
 
@@ -41,8 +43,36 @@ export default function Tour({ steps, part }: Props) {
       <button type="button" className="tour-retake" onClick={() => setOpen(true)}>
         {read() ? "Retake tutorial" : "Tutorial"}
       </button>
+      {welcome && !open && (
+        <Welcome
+          onYes={() => { setWelcome(false); setOpen(true); }}
+          onNo={() => { setWelcome(false); write("done"); }}
+        />
+      )}
       {open && <TourSteps steps={steps} onClose={close} />}
     </>
+  );
+}
+
+function Welcome({ onYes, onNo }: { onYes: () => void; onNo: () => void }) {
+  const yes = useRef<HTMLButtonElement>(null);
+  useEffect(() => yes.current?.focus(), []);
+  return (
+    <div className="tour" onKeyDown={(e) => e.key === "Escape" && onNo()}>
+      <div className="tour-scrim tour-dim" onClick={onNo} />
+      <div className="tour-card tour-welcome" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+        <p className="tour-count">Hello there</p>
+        <h2 id="welcome-title">Welcome to the Niche Space Directory</h2>
+        <p>
+          We line up NASA SPHEREx pictures of one patch of sky and play them like a flipbook, so you can catch
+          things that move. Want a quick tour first? It takes about a minute.
+        </p>
+        <div className="tour-actions">
+          <button type="button" className="tour-skip" onClick={onNo}>Not now</button>
+          <button ref={yes} type="button" className="primary" onClick={onYes}>Show me around</button>
+        </div>
+      </div>
+    </div>
   );
 }
 

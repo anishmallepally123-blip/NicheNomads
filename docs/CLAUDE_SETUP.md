@@ -1,14 +1,13 @@
-# Turning on the Claude features
+# Turning on the Niche features
 
-Three parts of the site use Claude:
+Two parts of the site use Niche, our AI helper:
 
-- **Explain this in plain English** (under "What's here?" in the viewer)
 - **Plain-English search** (the search box on the homepage and in the viewer), so
   "the fastest star in the sky" or "a cold brown dwarf" works, not just coordinates
 - **Notes on mover candidates** (in the "Find movers" card)
 
 Until a key is added, the site still works: search takes coordinates and the test
-target names, the mover finder still finds and marks movers, and the Claude buttons
+target names, the mover finder still finds and marks movers, and the Niche parts
 show a short "not set up yet" note.
 
 ## Who does this
@@ -36,7 +35,7 @@ Claude Haiku 5.5, and each answer costs a small fraction of a cent.
 If the site has two Vercel projects, do this on the one that serves the live address.
 
 Optional: add `CLAUDE_DAILY_LIMIT` (a number, default 600) to change how many
-Claude answers the site gives per day before it politely stops until tomorrow.
+Niche answers the site gives per day before it politely stops until tomorrow.
 
 ## How the key stays safe
 
@@ -64,4 +63,4 @@ Then run `npm run setup` once and `npm run dev` as usual. The dev server serves
 ## Other hosts
 
 Netlify, Render, Cloudflare Pages and GitHub Pages don't run `api/claude.ts`, so
-the Claude features stay off there and everything else works.
+the Niche features stay off there and everything else works.

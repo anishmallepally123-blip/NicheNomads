@@ -94,7 +94,7 @@ export default function Home({ onGo }: Props) {
 
       <main className="home-main">
         <section className="home-hero">
-          <h1>Spot what's <em>moving</em> out there.</h1>
+          <h1>Welcome to the <em>niche</em> directory</h1>
           <p className="home-lede">
             SPHEREx has photographed the whole sky several times since 2025. Type a position and we line up
             every picture of that spot and play them like a flipbook. Far away stars stay still. Something close
