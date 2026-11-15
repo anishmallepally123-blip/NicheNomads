@@ -80,6 +80,11 @@ export const TARGETS: Target[] = [
     "Mira variable with a period of about 246 days.", 3),
 ];
 
+/** Where a mover actually sits in the SPHEREx exposures, when that is off its
+ *  listed position. WISE 0855 is ~1.6 arcmin west of the challenge's 2014
+ *  coordinates (checked against AllWISE neighbours). Used for spectra. */
+export const SPHEREX_AT: Record<string, { ra: number; dec: number }> = { wise0855: { ra: 133.759, dec: -7.2419 } };
+
 export function findTarget(text: string): Target | null {
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
   const key = norm(text);

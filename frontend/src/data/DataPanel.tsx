@@ -142,6 +142,9 @@ function skipNote(s: Spectrum) {
   const skipped = s.points.filter((p) => !p.ok);
   if (skipped.length === 0) return "";
   const saturated = skipped.filter((p) => p.reason?.startsWith("saturated")).length;
+  const unread = skipped.filter((p) => p.reason?.startsWith("could not read")).length;
+  if (unread > skipped.length / 2)
+    return `${skipped.length} skipped: ${unread} exposures could not be downloaded from IRSA (it may be busy), try again in a minute. `;
   if (saturated > skipped.length / 2)
     return `${skipped.length} skipped: the source is saturated (too bright for SPHEREx) in most exposures, so its spectrum cannot be measured here. `;
   return `${skipped.length} skipped because flagged pixels cover the source. `;
@@ -154,11 +157,13 @@ export function SpectrumSection({ view, label = "Measure spectrum at the centre"
   hint?: string;
 }) {
   const [result, setResult] = useState<Async<Spectrum>>({ status: "idle" });
+  const [progress, setProgress] = useState<[number, number] | null>(null);
   useEffect(() => setResult({ status: "idle" }), [view.ra, view.dec]);
 
   const measure = () => {
     setResult({ status: "loading" });
-    fetchSpectrum(view.ra, view.dec)
+    setProgress(null);
+    fetchSpectrum(view.ra, view.dec, undefined, (done, total) => setProgress([done, total]))
       .then((value) => setResult({ status: "done", value }))
       .catch((err) => setResult({ status: "error", message: String(err.message ?? err) }));
   };
@@ -183,12 +188,21 @@ export function SpectrumSection({ view, label = "Measure spectrum at the centre"
         </p>
       )}
       {result.status === "loading" && (
-        <p className="hint">Reading every exposure from the archive. A new position takes about a minute.</p>
+        <p className="hint">
+          {progress
+            ? `Measured ${progress[0]} of ${progress[1]} exposures…`
+            : "Finding every exposure of this spot in the archive…"}{" "}
+          A new position takes about a minute.
+        </p>
       )}
       {result.status === "error" && <p className="hint warn">{result.message}</p>}
       {result.status === "done" && (
         <>
-          {result.value.channels.length > 0 && <SpectrumChart spectrum={result.value} />}
+          {result.value.channels.length > 0 ? (
+            <SpectrumChart spectrum={result.value} />
+          ) : (
+            <p className="hint warn">No exposure could be measured here, so there is no spectrum to draw.</p>
+          )}
           <p className="hint">
             {result.value.measured} of {result.value.total} exposures measured. {skipNote(result.value)}PSF-fitted flux
             with the local background removed.{" "}

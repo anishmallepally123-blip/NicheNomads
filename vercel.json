@@ -7,6 +7,7 @@
   "ignoreCommand": "bash -c 'case \"$VERCEL_GIT_COMMIT_REF\" in main|preview/*) exit 1;; *) exit 0;; esac'",
   "rewrites": [
     { "source": "/irsa/:path*", "destination": "https://irsa.ipac.caltech.edu/:path*" },
-    { "source": "/simbad/:path*", "destination": "https://simbad.cds.unistra.fr/:path*" }
+    { "source": "/simbad/:path*", "destination": "https://simbad.cds.unistra.fr/:path*" },
+    { "source": "/ialirt/:path*", "destination": "https://ialirt.imap-mission.com/:path*" }
   ]
 }

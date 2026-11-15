@@ -76,6 +76,33 @@ async function fetchRetry(url: string, signal?: AbortSignal, tries = 7): Promise
   }
 }
 
+// ---------------------------------------------------------------- saved copies
+
+// Answers from IRSA are also kept in the browser's Cache Storage, so a page
+// reload (or a demo with bad Wi-Fi) shows pictures already downloaded once.
+// Cutouts of one exposure never change; searches are reused for SEARCH_TTL_MS.
+const DISK = "irsa-v1";
+const disk = () => (typeof caches !== "undefined" ? caches.open(DISK).catch(() => null) : Promise.resolve(null));
+
+async function savedFetch(url: string, signal?: AbortSignal, maxAgeMs = Infinity): Promise<Response> {
+  const store = await disk();
+  const hit = await store?.match(url).catch(() => undefined);
+  if (hit && Date.now() - Number(hit.headers.get("x-saved-at") ?? 0) < maxAgeMs) return hit;
+  let res: Response;
+  try {
+    res = await fetchRetry(url, signal);
+  } catch (err) {
+    if (hit && !signal?.aborted) return hit; // offline: an old copy beats nothing
+    throw err;
+  }
+  if (!res.ok || !store) return res;
+  const body = await res.arrayBuffer();
+  const headers = new Headers(res.headers);
+  headers.set("x-saved-at", String(Date.now()));
+  store.put(url, new Response(body.slice(0), { headers })).catch(() => {}); // quota full: just skip
+  return new Response(body, { status: res.status, headers });
+}
+
 // ---------------------------------------------------------------- search
 
 /** Parse an IVOA VOTable (TABLEDATA) into row objects. */
@@ -160,7 +187,7 @@ export async function searchFrames(ra: number, dec: number, refresh = false, sig
   const url = `${IRSA_BASE}/SIA?POS=${encodeURIComponent(pos)}&INSTRUMENT=SPHEREx&RESPONSEFORMAT=VOTABLE`;
   let frames: Frame[];
   try {
-    const res = await fetchRetry(url, signal);
+    const res = await savedFetch(url, signal, refresh ? 0 : 12 * SEARCH_TTL_MS);
     if (!res.ok) throw new Error(`IRSA image search failed (${res.status})`);
     const xml = await res.text();
     frames = framesFromSia(xml);
@@ -205,21 +232,43 @@ export function fetchCutout(
   const cached = cutouts.get(key);
   if (cached) return cached;
   const url = `${viaProxy(frame.access_url)}?center=${ra.toFixed(6)},${dec.toFixed(6)}deg&size=${sizeDeg.toFixed(5)}deg`;
-  const job = slot(async () => {
-    for (let attempt = 0; ; attempt++) {
-      const res = await fetchRetry(url, signal);
-      if (!res.ok) throw new Error(`IRSA cutout failed for ${frame.id} (${res.status})`);
+  const wanted = ["IMAGE", "FLAGS", "VARIANCE", "ZODI", ...(withPsf ? ["EPSF"] : [])];
+  const diskKey = url + (withPsf ? "&psf" : "");
+  const read = async (res: Response) => {
+    const h = await readFitsHdus(res, wanted);
+    if (!h.IMAGE) throw new Error(`No image in cutout for ${frame.id}`);
+    return { image: h.IMAGE, flags: h.FLAGS, variance: h.VARIANCE, zodi: h.ZODI, epsf: h.EPSF } as Cutout;
+  };
+  const job = (async () => {
+    const store = await disk();
+    const hit = await store?.match(diskKey).catch(() => undefined);
+    if (hit) {
       try {
-        const h = await readFitsHdus(res, ["IMAGE", "FLAGS", "VARIANCE", "ZODI", ...(withPsf ? ["EPSF"] : [])]);
-        if (!h.IMAGE) throw new Error(`No image in cutout for ${frame.id}`);
-        return { image: h.IMAGE, flags: h.FLAGS, variance: h.VARIANCE, zodi: h.ZODI, epsf: h.EPSF };
-      } catch (err) {
-        // "Server busy, retry later." can also come back as a short text answer
-        if (signal?.aborted || attempt >= 5 || !/busy/i.test(String(err))) throw err;
-        await sleep(Math.min(8000, 1000 * 2 ** attempt) * (0.75 + Math.random() / 2), signal);
+        return await read(hit);
+      } catch {
+        await store?.delete(diskKey).catch(() => {});
       }
     }
-  });
+    return slot(async () => {
+      for (let attempt = 0; ; attempt++) {
+        const res = await fetchRetry(url, signal);
+        if (!res.ok || !res.body) throw new Error(`IRSA cutout failed for ${frame.id} (${res.status})`);
+        // Keep the bytes we read (we stop once the planes we need have arrived)
+        // so the next visit can skip IRSA.
+        const chunks: Uint8Array[] = [];
+        const tap = new TransformStream<Uint8Array, Uint8Array>({ transform: (c, ctl) => { chunks.push(c); ctl.enqueue(c); } });
+        try {
+          const cut = await read(new Response(res.body.pipeThrough(tap)));
+          store?.put(diskKey, new Response(new Blob(chunks as BlobPart[]))).catch(() => {}); // quota full: just skip
+          return cut;
+        } catch (err) {
+          // "Server busy, retry later." can also come back as a short text answer
+          if (signal?.aborted || attempt >= 5 || !/busy/i.test(String(err))) throw err;
+          await sleep(Math.min(8000, 1000 * 2 ** attempt) * (0.75 + Math.random() / 2), signal);
+        }
+      }
+    });
+  })();
   cutouts.set(key, job);
   job.catch(() => cutouts.delete(key));
   if (cutouts.size > CUTOUT_CACHE_MAX) cutouts.delete(cutouts.keys().next().value as string);

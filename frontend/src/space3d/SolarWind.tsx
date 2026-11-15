@@ -16,15 +16,23 @@ async function latestWind(signal: AbortSignal): Promise<Wind> {
   const query = `/space-weather?instrument=swapi&time_utc_start=${fmt(start)}&time_utc_end=${fmt(end)}`;
   // Straight to IMAP first; the /ialirt proxy (dev server, Netlify) covers
   // the case where the browser blocks the cross-site call.
+  // Give each try 8 s so the card never hangs on "Asking IMAP".
+  const within = () => AbortSignal.any([signal, AbortSignal.timeout(8000)]);
   let res: Response;
   try {
-    res = await fetch(`https://ialirt.imap-mission.com${query}`, { signal });
+    res = await fetch(`https://ialirt.imap-mission.com${query}`, { signal: within() });
   } catch (err) {
     if (signal.aborted) throw err;
-    res = await fetch(`/ialirt${query}`, { signal });
+    res = await fetch(`/ialirt${query}`, { signal: within() });
   }
   if (!res.ok) throw new Error(`IMAP feed answered ${res.status}`);
-  const rows = (await res.json()) as Record<string, unknown>[];
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    throw new Error("IMAP feed did not send data");
+  }
+  const rows = (Array.isArray(body) ? body : ((body as { data?: unknown[] })?.data ?? [])) as Record<string, unknown>[];
   for (let i = rows.length - 1; i >= 0; i--) {
     const r = rows[i];
     const speed = Number(r.swapi_pseudo_proton_speed);
