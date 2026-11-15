@@ -134,6 +134,9 @@ mkdirSync(OUT, { recursive: true });
 const spots = targets.flatMap((t) =>
   SPHEREX_AT[t.id] ? [t, { ...t, ...SPHEREX_AT[t.id], name: `${t.name} (today)`, stampsOnly: true }] : [t],
 );
+// Extra spots that aren't challenge targets, for showing that any star works.
+// Keep ra/dec/band in sync with the landmark in space3d/objects.ts.
+spots.push({ id: "vega", name: "Vega", ra: 279.235, dec: 38.784, suggested_band: 3, noStamps: true });
 
 for (const t of spots) {
   console.log(`${t.name}: searching`);
@@ -144,7 +147,7 @@ for (const t of spots) {
   const frames = framesFromSia(xml.toString());
   const inBand = frames.filter((f) => f.detector === t.suggested_band);
   const view = t.stampsOnly ? [] : even(inBand, VIEW_MAX);
-  const stamps = frames.length > STAMP_ALL ? sample(frames) : frames;
+  const stamps = t.noStamps ? [] : frames.length > STAMP_ALL ? sample(frames) : frames;
   console.log(`${t.name}: ${frames.length} exposures; bundling ${view.length} of ${inBand.length} in band ${t.suggested_band}, ${stamps.length} stamps`);
   const jobs = [
     ...view.map((f) => ({ f, size: VIEW_DEG })),
