@@ -51,7 +51,7 @@ button.niche-btn.open, button.niche-btn.open:hover:not(:disabled) { background: 
 }
 @media (prefers-reduced-motion: reduce) { .niche-btn { transition: none; } }
 /* Out of the way while the tutorial runs. */
-body:has(.tour) .niche-btn, body:has(.tour) .niche-panel { display: none; }
+body:has(.tour) .niche-panel { display: none; }
 
 .niche-load { display: grid; gap: 6px; font-size: var(--text-xs); color: var(--color-muted); }
 .niche-load progress { width: 100%; height: 6px; accent-color: var(--color-accent); }
