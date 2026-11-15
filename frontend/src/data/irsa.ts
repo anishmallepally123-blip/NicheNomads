@@ -110,21 +110,31 @@ async function savedFetch(url: string, signal?: AbortSignal, maxAgeMs = Infinity
 // spectrum stamps load from our own host instead of IRSA. Anything else, and
 // anything newer than the bundle, still comes from IRSA.
 interface Manifest {
+  generated: string;
   files: Record<string, string>;
   epsf: Record<string, string>;
 }
 const PRELOAD = `${import.meta.env.BASE_URL}preload/`;
 let manifest: Promise<Manifest | null> | null = null;
+let version = ""; // so a refreshed bundle replaces copies saved in the browser
 const loadManifest = () =>
   (manifest ??= fetch(PRELOAD + "manifest.json")
     .then((r) => (r.ok ? (r.json() as Promise<Manifest>) : null))
+    .then((m) => (m && (version = encodeURIComponent(m.generated)), m))
     .catch(() => null));
 
 async function bundled(name: string | undefined, signal?: AbortSignal): Promise<Response | null> {
   if (!name) return null;
   try {
-    const res = await fetch(PRELOAD + name, { signal });
-    if (!res.ok) return null;
+    // Also kept in Cache Storage, so "Save for the demo" works offline
+    const store = await disk();
+    const url = `${PRELOAD}${name}?v=${version}`;
+    let res = await store?.match(url).catch(() => undefined);
+    if (!res) {
+      res = await fetch(url, { signal });
+      if (!res.ok) return null;
+      store?.put(url, res.clone()).catch(() => {}); // quota full: just skip
+    }
     const buf = new Uint8Array(await res.arrayBuffer());
     // gzip, unless the host already unpacked it for us
     if (buf[0] !== 0x1f || buf[1] !== 0x8b) return new Response(buf);
