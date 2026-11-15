@@ -1,9 +1,10 @@
 // Niche: a little helper button you can drag anywhere on the screen. It opens
 // a small chat that answers questions about the current view (we send a short
 // summary of what's on screen) and about SPHEREx in general. Answers come from
-// our /api/claude function; only the last few turns are sent to keep it cheap.
+// a small model (Qwen3 0.6B) running in this browser; it downloads the first
+// time the chat is opened. Only the last few turns are used, to keep it quick.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { askClaude, NotSetUp } from "../ai/claude";
+import { askNiche, loadNiche, NicheUnavailable, nicheStatus, onNicheStatus, STYLE, type Msg, type NicheStatus } from "../ai/niche";
 import "./chat.css";
 
 type Turn = { role: "user" | "assistant"; content: string };
@@ -11,6 +12,14 @@ type Turn = { role: "user" | "assistant"; content: string };
 const SIZE = 52; // button size, px
 const GAP = 12; // space kept from edges, the header and the footer
 const KEY = "niche-chat-pos";
+
+const SYSTEM =
+  "You are Niche, the helper inside the Niche Space Directory, a website that blinks NASA SPHEREx infrared images " +
+  "of one patch of sky taken on different dates, so moving objects stand out. Answer questions about the user's " +
+  "screen, SPHEREx, infrared astronomy and how to use the site, in 1 to 3 short sentences. Only use the screen facts " +
+  "and well-known astronomy. Politely decline unrelated topics. " + STYLE;
+
+const mb = (b: number) => Math.round(b / 1e6);
 
 const STARTERS = ["What am I looking at?", "What is SPHEREx?", "How do I spot a mover?"];
 
@@ -50,6 +59,13 @@ export default function NicheChat({ context }: { context: () => unknown }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [partial, setPartial] = useState("");
+  const [model, setModel] = useState<NicheStatus>(nicheStatus);
+  useEffect(() => onNicheStatus(setModel), []);
+  // Start the download the first time the chat is opened.
+  useEffect(() => {
+    if (open) loadNiche().catch(() => undefined);
+  }, [open]);
   const drag = useRef<{ dx: number; dy: number; moved: boolean } | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
 
@@ -113,12 +129,19 @@ export default function NicheChat({ context }: { context: () => unknown }) {
     setText("");
     setNote(null);
     setBusy(true);
+    setPartial("");
     try {
-      const reply = await askClaude("chat", { context: context(), messages: next.slice(-6) });
-      setTurns([...next, { role: "assistant", content: reply }]);
+      const messages: Msg[] = [
+        { role: "system", content: `${SYSTEM}\n\nOn screen now: ${JSON.stringify(context() ?? {}).slice(0, 1500)}` },
+        ...next.slice(-4).map((t) => ({ role: t.role, content: t.content.slice(0, 500) })),
+      ];
+      const reply = await askNiche(messages, 200, setPartial);
+      setTurns([...next, { role: "assistant", content: reply || "Sorry, I don't have an answer for that." }]);
     } catch (err) {
-      setNote(err instanceof NotSetUp ? "Niche isn't set up on this site yet. The rest of the site works as normal." : (err as Error).message);
+      // A failed load is already shown by the status line below.
+      if (!(err instanceof NicheUnavailable)) setNote((err as Error).message);
     } finally {
+      setPartial("");
       setBusy(false);
     }
   };
@@ -155,6 +178,13 @@ export default function NicheChat({ context }: { context: () => unknown }) {
         <span className="sr-only">Ask Niche</span>
       </button>
 
+      {!open && model.phase === "loading" && (
+        <div className="niche-toast niche-load" role="status">
+          <span>{model.total ? `Downloading Niche for plain-English search: ${mb(model.loaded)} of ${mb(model.total)} MB. Only the first time.` : "Starting Niche…"}</span>
+          <progress max={model.total || 1} value={model.total ? model.loaded : undefined} />
+        </div>
+      )}
+
       {open && (
         <div className="niche-panel" id="niche-panel" role="dialog" aria-label="Ask Niche" style={panelStyle}>
           <div className="niche-head">
@@ -176,7 +206,18 @@ export default function NicheChat({ context }: { context: () => unknown }) {
             {turns.map((t, i) => (
               <p key={i} className={t.role === "user" ? "niche-msg me" : "niche-msg bot"}>{t.content}</p>
             ))}
-            {busy && <p className="niche-msg bot thinking">Thinking…</p>}
+            {busy && <p className={partial ? "niche-msg bot" : "niche-msg bot thinking"}>{partial || (model.phase === "ready" ? "Thinking…" : "Waiting for Niche to load…")}</p>}
+            {model.phase === "loading" && (
+              <div className="niche-load" role="status">
+                <span>
+                  {model.total
+                    ? `Downloading Niche to this browser: ${mb(model.loaded)} of ${mb(model.total)} MB. Only the first time.`
+                    : "Starting Niche…"}
+                </span>
+                <progress max={model.total || 1} value={model.total ? model.loaded : undefined} />
+              </div>
+            )}
+            {model.phase === "error" && <p className="niche-note">{model.error} The rest of the site works as normal.</p>}
             {note && <p className="niche-note">{note}</p>}
           </div>
           <form className="niche-form" onSubmit={(e) => (e.preventDefault(), ask(text))}>
@@ -190,7 +231,9 @@ export default function NicheChat({ context }: { context: () => unknown }) {
             />
             <button type="submit" disabled={busy || !text.trim()}>Ask</button>
           </form>
-          <p className="niche-foot">Answers can be wrong. Check anything important.</p>
+          <p className="niche-foot">
+            Runs on your device{model.device === "wasm" ? " (no GPU found, so it's slower)" : ""}. Small model, answers can be wrong.
+          </p>
         </div>
       )}
     </>
