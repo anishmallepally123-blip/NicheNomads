@@ -1,0 +1,26 @@
+# Render Blueprint: Dashboard > New > Blueprint, pick this repo, Apply.
+# Free static site. IRSA sends no CORS headers, so Render forwards
+# /irsa/* to IRSA itself (a rewrite, no server code).
+services:
+  - type: web
+    name: spherex-blink
+    runtime: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: ./frontend/dist
+    pullRequestPreviewsEnabled: false
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: VITE_SENTRY_DSN   # optional browser error reporting, leave blank to skip
+        sync: false
+      - key: VITE_SUPABASE_URL   # optional sign-in + saved views, see docs/SAVED_VIEWS.md
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+    routes:
+      - type: rewrite
+        source: /irsa/*
+        destination: https://irsa.ipac.caltech.edu/*
+      - type: rewrite
+        source: /simbad/*
+        destination: https://simbad.cds.unistra.fr/*

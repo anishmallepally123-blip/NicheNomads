@@ -1,0 +1,29 @@
+# Static site. IRSA sends no CORS headers, so /irsa/* is forwarded to IRSA
+# by Netlify itself (a rewrite, no server code). Nothing else to configure.
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[redirects]]
+  from = "/irsa/*"
+  to = "https://irsa.ipac.caltech.edu/:splat"
+  status = 200
+  force = true
+
+# SIMBAD (object descriptions) is forwarded the same way.
+[[redirects]]
+  from = "/simbad/*"
+  to = "https://simbad.cds.unistra.fr/:splat"
+  status = 200
+  force = true
+
+# IMAP real-time solar wind (I-ALiRT), for the 3D map.
+[[redirects]]
+  from = "/ialirt/*"
+  to = "https://ialirt.imap-mission.com/:splat"
+  status = 200
+  force = true
