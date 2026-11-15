@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { CATEGORIES, HELIO_R, OBJECTS, PLANET_ORBITS, UPWIND_DIR, UPWIND_H_DIR, eclipticPoint, position, scaleLy, type Category, type MapObject } from "./objects";
+import { SpectrumSection } from "../data/DataPanel";
+import "../data/data.css";
 import "./space3d.css";
 
 const RINGS = [10, 100, 1000];
@@ -335,6 +337,16 @@ export default function Space3D({ embedded = false, onOpen }: Props) {
             <h2>{selected.name}</h2>
             <p className="s3d-dist">{selected.distText ?? `${fmtLy(selected.ly)} from the Sun`}</p>
             <p className="s3d-note">{selected.note}</p>
+            {!selected.noViewer && selected.category !== "imap" && (
+              <div className="s3d-spectrum">
+                <SpectrumSection
+                  key={selected.id}
+                  view={selected}
+                  label="Show its SPHEREx spectrum"
+                  hint="Measures this star in every SPHEREx exposure, 0.75 to 5 microns, and plots brightness against wavelength. Takes about a minute."
+                />
+              </div>
+            )}
             <div className="s3d-actions">
               {!selected.noViewer && (
               <a

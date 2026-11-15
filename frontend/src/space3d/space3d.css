@@ -97,3 +97,14 @@
 .s3d-top .s3d-filters { pointer-events: none; }
 .s3d-filters > button { pointer-events: auto; }
 .s3d-switch[aria-pressed="false"] { color: var(--color-accent-ink); }
+
+/* Spectrum inside a star's card */
+.s3d-card { max-height: 72dvh; overflow: auto; }
+.s3d-spectrum { margin: 0 0 var(--space-md); padding-top: var(--space-sm); border-top: var(--rule-hair) solid var(--color-rule); }
+.s3d-spectrum button {
+  padding: 6px 14px; border-radius: var(--radius-chip); border: var(--rule-hair) solid var(--color-cool);
+  background: transparent; color: var(--color-cool); font-size: var(--text-sm); cursor: pointer;
+}
+.s3d-spectrum button:disabled { opacity: 0.6; cursor: progress; }
+.s3d-spectrum .hint { margin: var(--space-xs) 0 0; font-size: var(--text-xs); color: var(--color-muted); line-height: 1.4; }
+.s3d-spectrum .hint a { color: var(--color-cool); }
