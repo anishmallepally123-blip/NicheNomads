@@ -126,7 +126,7 @@ export function drawMarkers(
     if (m.layer === "movers" && m.src.name) {
       ctx.globalAlpha = 1;
       ctx.fillStyle = FAST_COLOR;
-      ctx.font = "12px system-ui, sans-serif";
+      ctx.font = "15px VT323, monospace";
       // put the label on whichever side of the marker has room
       const w = ctx.measureText(m.src.name).width;
       const right = m.x + m.radius + 4 + w <= side - 4;
