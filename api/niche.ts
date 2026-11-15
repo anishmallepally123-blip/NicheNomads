@@ -22,7 +22,14 @@ function env(): Record<string, string | undefined> {
 const base = () => env().NICHE_SERVER_URL?.replace(/\/$/, "");
 const model = () => env().NICHE_MODEL || "qwen3:8b";
 // ngrok shows a warning page to browsers unless this header is sent.
-const HEADERS = { "Content-Type": "application/json", "ngrok-skip-browser-warning": "1" };
+// NICHE_SERVER_AUTH ("user:password") matches ngrok's --basic-auth, so the
+// tunnel only answers this function even if someone learns its address.
+function headers(): Record<string, string> {
+  const h: Record<string, string> = { "Content-Type": "application/json", "ngrok-skip-browser-warning": "1" };
+  const auth = env().NICHE_SERVER_AUTH;
+  if (auth) h.Authorization = `Basic ${btoa(auth)}`;
+  return h;
+}
 
 const hits = new Map<string, number[]>();
 let day = "";
@@ -48,7 +55,7 @@ async function serverUp(): Promise<boolean> {
   const url = base();
   if (!url) return false;
   try {
-    const r = await fetch(`${url}/api/tags`, { headers: HEADERS, signal: AbortSignal.timeout(3000) });
+    const r = await fetch(`${url}/api/tags`, { headers: headers(), signal: AbortSignal.timeout(3000) });
     return r.ok;
   } catch {
     return false;
@@ -104,7 +111,7 @@ export default async function handler(req: NodeReq, res: NodeRes) {
   try {
     const r = await fetch(`${url}/api/chat`, {
       method: "POST",
-      headers: HEADERS,
+      headers: headers(),
       signal: AbortSignal.timeout(45_000),
       body: JSON.stringify({
         model: model(),

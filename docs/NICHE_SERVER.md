@@ -13,8 +13,9 @@ falls back to the in-browser model.
 3. Make a free account at ngrok.com. In the dashboard, copy your authtoken
    and claim your free static domain (looks like `something.ngrok-free.app`).
 4. `winget install ngrok.ngrok`, then `ngrok config add-authtoken <token>`
-5. Start the tunnel and leave the window open:
-   `ngrok http 11434 --host-header=localhost:11434 --url=something.ngrok-free.app`
+5. Pick a long password (letters and numbers only). Start the tunnel and leave
+   the window open:
+   `ngrok http 11434 --host-header=localhost:11434 --domain=something.ngrok-free.app --basic-auth "niche:YOURPASSWORD"`
 6. Set Windows to never sleep while plugged in (Settings > System > Power).
 
 Ollama starts by itself when Windows starts; only the ngrok window needs
@@ -27,6 +28,7 @@ Project > Settings > Environment Variables, add for Production **and** Preview:
 | Name | Value |
 | --- | --- |
 | `NICHE_SERVER_URL` | `https://something.ngrok-free.app` |
+| `NICHE_SERVER_AUTH` | `niche:YOURPASSWORD` (same as in step 5) |
 | `NICHE_MODEL` (optional) | `qwen3:8b` (the default) |
 | `NICHE_DAILY_LIMIT` (optional) | answers per day across all visitors, default 2000 |
 
@@ -40,7 +42,10 @@ Put `NICHE_SERVER_URL=http://localhost:11434` in `frontend/.env.local` and run
 
 ## Good to know
 
-- The tunnel address is only stored in Vercel, never sent to visitors. Anyone
-  who learned it could still use the model, so don't post it anywhere.
+- The tunnel address and password are only stored in Vercel, never sent to
+  visitors or put in the repo. With the password set, the tunnel refuses
+  anyone else even if they learn the address.
+- Quick test on the PC: `curl -u niche:YOURPASSWORD https://something.ngrok-free.app/api/tags`
+  should list qwen3:8b.
 - All visitors share that one computer, so answers slow down if many people ask
   at once. The function limits each visitor to 30 questions per 10 minutes.

@@ -259,7 +259,7 @@ export default function NicheChat({ context }: { context: () => unknown }) {
           </form>
           <p className="niche-foot">
             {model.device === "server" ? "Runs on our team's own computer" : "Runs on your device"}
-            {model.device === "wasm" ? " (no GPU found, so it's slower)" : ""}. Small model, answers can be wrong.
+            {model.device === "wasm" ? " (no GPU found, so it's slower)" : ""}.{model.device === "server" ? " Answers can be wrong." : " Small model, answers can be wrong."}
           </p>
         </div>
       )}
