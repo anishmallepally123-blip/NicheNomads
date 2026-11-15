@@ -15,7 +15,7 @@ falls back to the in-browser model.
 4. `winget install ngrok.ngrok`, then `ngrok config add-authtoken <token>`
 5. Pick a long password (letters and numbers only). Start the tunnel and leave
    the window open:
-   `ngrok http 11434 --host-header=localhost:11434 --url=something.ngrok-free.app --basic-auth "niche:YOURPASSWORD"`
+   `ngrok http 11434 --host-header=localhost:11434 --domain=something.ngrok-free.app --basic-auth "niche:YOURPASSWORD"`
 6. Set Windows to never sleep while plugged in (Settings > System > Power).
 
 Ollama starts by itself when Windows starts; only the ngrok window needs
