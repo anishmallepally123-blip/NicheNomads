@@ -3,7 +3,7 @@
 // hosted without that function, or the key isn't set, calls fail with
 // NotSetUp and the features show a friendly note instead.
 
-export type ClaudeTask = "explain" | "search" | "movers";
+export type ClaudeTask = "explain" | "search" | "movers" | "chat";
 
 export class NotSetUp extends Error {
   constructor(message = "Claude isn't set up on this site yet.") {
