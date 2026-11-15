@@ -339,11 +339,11 @@ export default function Space3D({ embedded = false, onOpen }: Props) {
             <p className="s3d-dist">{selected.distText ?? `${fmtLy(selected.ly)} from the Sun`}</p>
             <p className="s3d-note">{selected.note}</p>
             {(selected.category === "imap" || selected.id === "imapcraft") && <SolarWind />}
-            {!selected.noViewer && selected.category !== "imap" && (
+            {!selected.noViewer && !selected.noSpectrum && selected.category !== "imap" && (
               <div className="s3d-spectrum">
                 <SpectrumSection
                   key={selected.id}
-                  view={selected}
+                  view={selected.spec ?? selected}
                   label="Show its SPHEREx spectrum"
                   hint="Measures this star in every SPHEREx exposure, 0.75 to 5 microns, and plots brightness against wavelength. Takes about a minute."
                 />

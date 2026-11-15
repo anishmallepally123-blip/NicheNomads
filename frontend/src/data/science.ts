@@ -490,13 +490,16 @@ export function measureFrames(frames: Frame[], ra: number, dec: number, signal?:
 const spectra = new Map<string, Promise<unknown>>();
 
 /** Spectrum at a sky position: forced PSF photometry in every exposure. */
-export function spectrum(ra: number, dec: number, signal?: AbortSignal) {
+export function spectrum(ra: number, dec: number, signal?: AbortSignal, onProgress?: (done: number, total: number) => void) {
   const key = `${ra.toFixed(6)},${dec.toFixed(6)}`;
   const cached = spectra.get(key);
   if (cached) return cached as ReturnType<typeof run>;
   const run = async () => {
     const frames = await searchFrames(ra, dec, false, signal);
-    const points = await measureFrames(frames, ra, dec, signal);
+    if (!frames.length) throw new Error("SPHEREx has not observed this spot yet, so there is no spectrum to measure.");
+    let done = 0;
+    onProgress?.(0, frames.length);
+    const points = await measureFrames(frames, ra, dec, signal, () => onProgress?.(++done, frames.length));
     points.sort((a, b) => (a.wavelength ?? 99) - (b.wavelength ?? 99) || a.mjd - b.mjd);
     return {
       ra, dec, band: null, unit: "uJy",
