@@ -140,6 +140,42 @@ export const TERMS = {
     word: "SIMBAD",
     text: "A free online database run in Strasbourg, France, that lists millions of known objects beyond the Solar System with their names, types and distances.",
   },
+  spectralImage: {
+    word: "Spectral image (exposure file)",
+    text: "One SPHEREx snapshot, saved as a single file with several layers: the picture itself, a map of problem pixels, a noise map, a model of the background glow, the blur shape of stars, and which colour each pixel saw.",
+  },
+  zodi: {
+    word: "Zodiacal light",
+    text: "A faint glow from sunlight bouncing off dust spread between the planets. In infrared it is brighter than almost everything else, so SPHEREx models it for every picture and takes it away.",
+  },
+  variance: {
+    word: "Noise (variance) map",
+    text: "A layer in each SPHEREx file saying how much each pixel's value could be off by chance. Brighter areas in this map are less trustworthy.",
+  },
+  release: {
+    word: "Data release",
+    text: "A batch of SPHEREx data the team has processed and made public. Quick Releases (QR2, QR3) came out fast; Data Release 1 (DR1, November 2026) is the carefully reprocessed version. Newer releases replace older copies here.",
+  },
+  fits: {
+    word: "FITS file",
+    text: "The standard file format astronomers use for pictures and tables. Free programs such as SAOImage DS9, or Python's Astropy, can open it.",
+  },
+  cube: {
+    word: "Spectral cube",
+    text: "A stack of 102 pictures of the same patch of sky, one for each SPHEREx colour, built by combining many exposures. Flip through the stack to see how each spot's colour changes.",
+  },
+  hips: {
+    word: "All-sky map (HiPS)",
+    text: "A way of cutting a map of the whole sky into tiles, like an online street map, so any part can be zoomed into quickly. IRSA publishes the SPHEREx DR1 sky this way.",
+  },
+  splices: {
+    word: "SPLICES (ice sources)",
+    text: "The SPHEREx Target List of Ice Sources: young stars and dark clouds whose light passes through frozen water, carbon dioxide and other ices. SPHEREx measures the dips those ices leave in the light, one of its three main science goals.",
+  },
+  lvf: {
+    word: "Linear variable filter",
+    text: "The colour filter over each SPHEREx detector. Its colour changes smoothly from one edge to the other, so as the telescope steps across the sky, every spot gets seen in all 102 colours.",
+  },
   planetX: {
     word: "Planet X",
     text: "A possible undiscovered planet far beyond Neptune. If it exists it would be cold and dim, so it would show up best as a slowly moving infrared dot.",

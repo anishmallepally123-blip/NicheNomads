@@ -21,6 +21,11 @@ export type ImageOp = "none" | "diff" | "sum";
 /** What a difference is taken against: previous/first frame, the median or mean of
  *  all frames (static stars cancel, movers stay), or one pinned frame by obs_id. */
 export type DiffRef = "prev" | "first" | "median" | "mean" | string;
+/** Which part of each SPHEREx exposure file is drawn: the sky (background
+ *  removed), the zodiacal-light background model, the noise map, or the
+ *  problem-pixel map. */
+export type Plane = "sky" | "zodi" | "noise" | "flags";
+export const PLANES: Plane[] = ["sky", "zodi", "noise", "flags"];
 
 export interface ViewState {
   ra: number;
@@ -32,6 +37,7 @@ export interface ViewState {
   play: boolean;
   zoom: number;
   op: ImageOp;
+  plane: Plane;
   ref: DiffRef;
   n: number; // frames per stack for op=sum
   gain: number; // contrast multiplier for op=diff
@@ -52,6 +58,7 @@ export const DEFAULT_STATE: ViewState = {
   play: true,
   zoom: 1,
   op: "none",
+  plane: "sky",
   ref: "median",
   n: 4,
   gain: 3,
@@ -132,6 +139,7 @@ export function parseUrl(search: string): ViewState {
     play: flag("play", D.play) && !p.get("frame"),
     zoom: clamp(num("zoom", D.zoom), ZOOM_MIN, ZOOM_MAX),
     op: op === "diff" || op === "sum" ? op : "none",
+    plane: (PLANES as string[]).includes(p.get("plane") ?? "") ? (p.get("plane") as Plane) : D.plane,
     ref: ref && /^[\w.:-]{1,80}$/.test(ref) ? ref : D.ref,
     n: clamp(Math.round(num("n", D.n)), 2, 20),
     gain: clamp(num("gain", D.gain), 0.5, 20),
@@ -165,6 +173,7 @@ export function toQuery(s: ViewState, overrides: Partial<ViewState> = {}): strin
       if (v.gain !== D.gain) p.set("gain", round(v.gain, 1));
     } else p.set("n", String(v.n));
   }
+  if (v.plane !== D.plane) p.set("plane", v.plane);
   if (v.invert) p.set("invert", "1");
   if (!v.marker) p.set("marker", "0");
   if (v.embed) {

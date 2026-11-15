@@ -5,6 +5,7 @@
 import { alignCutout, cutoutSizeDeg, toImageData } from "../data/align";
 import { fetchCutout, searchFrames, type Frame } from "../data/irsa";
 import { resolve, TARGETS, type Target } from "../data/targets";
+import type { Plane } from "../state/urlState";
 
 export type { Target };
 export interface FrameInfo {
@@ -18,6 +19,7 @@ export interface FrameInfo {
   wave_max: number;
   collection: string;
   release_date: string;
+  access_url: string; // the full exposure file at IRSA
 }
 
 export interface BandInfo {
@@ -56,7 +58,7 @@ export const fetchTargets = async (): Promise<Target[]> => TARGETS;
 
 export const resolveQuery = async (q: string) => resolve(q);
 
-const publicFrame = ({ access_url: _url, ...info }: Frame): FrameInfo => info;
+const publicFrame = (f: Frame): FrameInfo => ({ ...f });
 
 export async function fetchFrames(view: View, band: number, refresh = false, signal?: AbortSignal): Promise<FrameList> {
   const found = await searchFrames(view.ra, view.dec, refresh, signal);
@@ -87,13 +89,14 @@ export async function loadFrameImage(
   view: View,
   size: number,
   signal?: AbortSignal,
+  plane: Plane = "sky",
 ): Promise<LoadedFrame> {
   const full = (await searchFrames(view.ra, view.dec, false, signal)).find((f) => f.id === frame.id);
   if (!full) throw new Error(`Unknown frame ${frame.id} at this position`);
   const fovDeg = view.fov / 60;
   const cut = await fetchCutout(full, view.ra, view.dec, cutoutSizeDeg(fovDeg), signal);
-  const aligned = alignCutout(cut, full.detector, view.ra, view.dec, fovDeg, size);
-  const image = await createImageBitmap(toImageData(aligned));
+  const aligned = alignCutout(cut, full.detector, view.ra, view.dec, fovDeg, size, true, plane);
+  const image = await createImageBitmap(toImageData(aligned, plane === "sky" ? "asinh" : "linear"));
   return {
     ...frame,
     image,
