@@ -121,7 +121,7 @@ export default function App() {
   const maxSide = state.embed
     ? winHeight - (state.controls ? 190 : 50)
     : wide && stageTop > 0
-      ? Math.max(360, winHeight - stageTop - 24)
+      ? Math.max(360, winHeight - stageTop - 52)
       : undefined;
 
   // A short summary of what's on screen for the Niche helper (read when a question is sent).
@@ -235,6 +235,13 @@ export default function App() {
               onBand={(band) => update({ band })}
               onExample={() => update({ ra: DEFAULT_STATE.ra, dec: DEFAULT_STATE.dec, band: DEFAULT_STATE.band })}
             />
+            <p className="frames-loading" role="status" aria-live="polite">
+              {frames.loading && frames.frames.length > 0 && !frames.error && (
+                <>
+                  <i className="spin" aria-hidden="true" /> Loading more frames… {frames.loaded} of {frames.total}
+                </>
+              )}
+            </p>
           </div>
           {ops.label && <p className="ops-banner">{ops.label}</p>}
           {(!state.embed || state.controls) && <PlayerControls player={player} frames={frames.frames} />}
