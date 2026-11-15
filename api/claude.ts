@@ -5,7 +5,7 @@
 //
 // The API key lives only here, read from the ANTHROPIC_API_KEY environment
 // variable. The browser never sees it. The browser also can't send its own
-// prompt: it picks one of three fixed tasks and sends a little JSON of facts,
+// prompt: it picks one of four fixed tasks and sends a little JSON of facts,
 // and this file writes the prompt. That keeps the endpoint useless as a free
 // general chatbot for strangers.
 //
@@ -21,7 +21,7 @@ const PER_IP_LIMIT = 20; // requests per visitor...
 const PER_IP_WINDOW_MS = 10 * 60 * 1000; // ...per 10 minutes
 const DAILY_LIMIT = Number(env().CLAUDE_DAILY_LIMIT ?? 600); // all visitors, per instance
 
-type Task = "explain" | "search" | "movers";
+type Task = "explain" | "search" | "movers" | "chat";
 
 const STYLE =
   "Write for a curious teenager or a member of the public. Plain words, short sentences, no markdown, " +
@@ -63,7 +63,35 @@ const TASKS: Record<Task, { maxTokens: number; system: string }> = {
       "strong support. SPHEREx pixels are about 6 arcsec, so shifts of a few arcsec are near the limit. " +
       'Reply with JSON only: {"notes": [{"id": number, "text": string}]}. ' + STYLE,
   },
+  chat: {
+    maxTokens: 280,
+    system:
+      "You are Niche, the small helper inside the Niche Space Directory, a site that blinks NASA SPHEREx infrared " +
+      "images of one patch of sky from different dates so moving objects stand out. Answer questions about what " +
+      "is on the user's screen (given as JSON facts after this text) and about SPHEREx, infrared astronomy and " +
+      "how to use the site. Keep answers to 1 to 4 short sentences unless asked for more. Only use the screen facts " +
+      "and well-known astronomy. If you don't know, or the facts don't say, say so plainly instead of guessing. " +
+      "Politely decline topics unrelated to astronomy or this site. " + STYLE,
+  },
 };
+
+// Chat: only the last few turns, each cut short, so a long chat stays cheap.
+const CHAT_TURNS = 6;
+const CHAT_TURN_CHARS = 600;
+
+type Turn = { role: "user" | "assistant"; content: string };
+
+function chatMessages(input: unknown): { context: string; messages: Turn[] } | null {
+  const i = (input ?? {}) as { context?: unknown; messages?: unknown };
+  if (!Array.isArray(i.messages)) return null;
+  const messages = i.messages
+    .filter((m): m is Turn => (m?.role === "user" || m?.role === "assistant") && typeof m.content === "string" && m.content.trim() !== "")
+    .slice(-CHAT_TURNS)
+    .map((m) => ({ role: m.role, content: m.content.slice(0, CHAT_TURN_CHARS) }));
+  while (messages.length && messages[0].role !== "user") messages.shift();
+  if (!messages.length || messages[messages.length - 1].role !== "user") return null;
+  return { context: JSON.stringify(i.context ?? {}).slice(0, 2500), messages };
+}
 
 // ---------------------------------------------------------------------------
 
@@ -108,13 +136,21 @@ export async function handleClaude(raw: unknown, ip: string): Promise<Reply> {
   const task = req.task as Task;
   if (!(task in TASKS)) return { status: 400, body: { code: "bad_request", error: "Unknown task" } };
   const input = JSON.stringify(req.input ?? {});
-  if (input.length > MAX_INPUT_CHARS) return { status: 413, body: { code: "bad_request", error: "Too much input" } };
+  if (input.length > (task === "chat" ? MAX_INPUT_CHARS * 2 : MAX_INPUT_CHARS)) return { status: 413, body: { code: "bad_request", error: "Too much input" } };
 
   const limited = rateLimited(ip);
   if (limited) return { status: 429, body: { code: "rate_limited", error: limited } };
 
   client ??= new Anthropic({ apiKey: key, maxRetries: 1, timeout: 25_000 });
   const { maxTokens, system } = TASKS[task];
+  let messages: Turn[] = [{ role: "user", content: input }];
+  let fullSystem = system;
+  if (task === "chat") {
+    const chat = chatMessages(req.input);
+    if (!chat) return { status: 400, body: { code: "bad_request", error: "Ask a question first" } };
+    messages = chat.messages;
+    fullSystem = `${system}\n\nOn screen now: ${chat.context}`;
+  }
   try {
     const msg = await client.messages.create({
       model: MODEL,
@@ -122,8 +158,8 @@ export async function handleClaude(raw: unknown, ip: string): Promise<Reply> {
       // Short factual answers: no thinking, low effort, to keep each call cheap.
       thinking: { type: "disabled" },
       output_config: { effort: "low" },
-      system,
-      messages: [{ role: "user", content: input }],
+      system: fullSystem,
+      messages,
     });
     if (msg.stop_reason === "refusal") {
       return { status: 502, body: { code: "upstream", error: "Claude declined to answer that one." } };
