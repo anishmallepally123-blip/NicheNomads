@@ -81,3 +81,8 @@
   .s3d.is-embedded { aspect-ratio: 3 / 4; }
   .s3d.is-embedded .s3d-chip { padding: 4px 10px; font-size: var(--text-xs); }
 }
+
+/* Star name tags are clickable too, and the tag box reaches back over the star
+   so the dot and its name make one wide target. */
+.s3d-hit { pointer-events: auto; cursor: pointer; margin: calc(-0.6em - 8px) 0 0 -16px; padding: 8px 10px 8px 28px; border-radius: var(--radius-pill); }
+.s3d-hit:hover { color: var(--color-accent); background: color-mix(in oklab, var(--color-paper-4) 45%, transparent); }

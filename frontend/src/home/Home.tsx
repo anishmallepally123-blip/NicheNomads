@@ -88,7 +88,7 @@ export default function Home({ onGo }: Props) {
             <p className="home-help">
               Degrees like <code>133.7951 -7.2451</code>, or hours like <code>08h55m10.8s -07d14m42s</code>.
               A name like <code>Barnard's Star</code> works too. You can also just describe it, like{" "}
-              <code>the fastest star in the sky</code>, or pick a star on the 3D map.
+              <code>the fastest star in the sky</code>, or pick a star in Niche in 3D.
             </p>
             {error && <p className="home-error" role="alert">{error}</p>}
           </form>
@@ -100,7 +100,7 @@ export default function Home({ onGo }: Props) {
         </section>
 
         <figure className="home-chart">
-          <Suspense fallback={<div className="s3d-loading">Loading the 3D map…</div>}>
+          <Suspense fallback={<div className="s3d-loading">Loading Niche in 3D…</div>}>
             <Space3D embedded onOpen={(o) => onGo({ ra: o.ra, dec: o.dec, band: o.band })} />
           </Suspense>
         </figure>

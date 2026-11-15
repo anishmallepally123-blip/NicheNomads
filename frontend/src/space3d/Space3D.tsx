@@ -113,6 +113,8 @@ export default function Space3D({ embedded = false, onOpen }: Props) {
     const where: Record<string, THREE.Vector3> = { sun: new THREE.Vector3() };
     RINGS.forEach((ly) => { where[`ring${ly}`] = new THREE.Vector3(-scaleLy(ly) * 0.707, 0, scaleLy(ly) * 0.707); });
     const sphere = keep(new THREE.SphereGeometry(0.12, 20, 14));
+    const hitBall = keep(new THREE.SphereGeometry(0.6, 8, 6));
+    const hitMat = keep(new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
     for (const c of CATEGORIES) {
       const g = new THREE.Group();
       const color = cssColor(c.color);
@@ -124,8 +126,12 @@ export default function Space3D({ embedded = false, onOpen }: Props) {
         where[o.id] = p;
         const m = new THREE.Mesh(sphere, mat);
         m.position.copy(p);
-        m.userData.id = o.id;
-        meshes.push(m);
+        // A bigger see-through ball catches clicks so stars are easy to hit.
+        const hit = new THREE.Mesh(hitBall, hitMat);
+        hit.position.copy(p);
+        hit.userData.id = o.id;
+        meshes.push(hit);
+        g.add(hit);
         const halo = new THREE.Sprite(haloMat);
         halo.position.copy(p);
         halo.scale.setScalar(0.75);
@@ -240,8 +246,9 @@ export default function Space3D({ embedded = false, onOpen }: Props) {
             <span
               key={o.id}
               ref={(n) => { labels.current[o.id] = n; }}
-              className={`s3d-label s3d-cat-${o.category}${selected?.id === o.id ? " is-on" : ""}`}
+              className={`s3d-label s3d-hit s3d-cat-${o.category}${selected?.id === o.id ? " is-on" : ""}`}
               hidden={!shown[o.category]}
+              onClick={() => pick(o)}
             >
               {o.name}
             </span>
@@ -255,7 +262,7 @@ export default function Space3D({ embedded = false, onOpen }: Props) {
         ) : (
           <>
             <a className="s3d-back" href={window.location.pathname}>← Niche Space Directory</a>
-            <h1>Neighbourhood in 3D</h1>
+            <h1>Niche in 3D</h1>
             <p>Drag to turn, scroll or pinch to zoom. Distances are squashed so near and far both fit.</p>
           </>
         )}

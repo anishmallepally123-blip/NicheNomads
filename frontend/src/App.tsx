@@ -187,7 +187,7 @@ export default function App() {
             <a href="#glossary" onClick={() => document.getElementById("glossary")?.setAttribute("open", "")}>What do these words mean?</a>
           </p>
           <Tour steps={VIEWER_STEPS} part="viewer" />
-          <a className="new-search" href={`${window.location.pathname}?view=3d`}>3D map</a>
+          <a className="new-search" href={`${window.location.pathname}?view=3d`}>Niche in 3D</a>
           <a className="new-search" href={window.location.pathname}>New search</a>
           <AccountButton savedPanelId="saved-views" />
         </header>
