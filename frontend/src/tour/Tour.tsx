@@ -65,7 +65,7 @@ function Welcome({ onYes, onNo }: { onYes: () => void; onNo: () => void }) {
         <h2 id="welcome-title">Welcome to the Niche Space Directory</h2>
         <p>
           We line up NASA SPHEREx pictures of one patch of sky and play them like a flipbook, so you can catch
-          things that move. Want a quick tour first? It takes about a minute.
+          things that move. Want a quick tour first? It takes about two minutes, and you can skip any part.
         </p>
         <div className="tour-actions">
           <button type="button" className="tour-skip" onClick={onNo}>Not now</button>
@@ -107,6 +107,9 @@ function TourSteps({ steps, onClose }: { steps: Step[]; onClose: (finished: bool
   const last = i === live.length - 1;
   const next = () => (last ? onClose(true) : setI(i + 1));
   const back = () => setI(Math.max(0, i - 1));
+  // Jump to the first step of the next section.
+  const nextGroup = live.findIndex((s, j) => j > i && s.group !== step?.group);
+  const skipPart = () => (nextGroup < 0 ? onClose(true) : setI(nextGroup));
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") onClose(false);
@@ -152,11 +155,14 @@ function TourSteps({ steps, onClose }: { steps: Step[]; onClose: (finished: bool
         tabIndex={-1}
         style={{ top, bottom, left }}
       >
-        <p className="tour-count">{i + 1} / {live.length}</p>
+        <p className="tour-count">{step.group ? `${step.group} · ` : ""}{i + 1} / {live.length}</p>
         <h2 id="tour-title">{step.title}</h2>
         <p id="tour-body">{step.body}</p>
         <div className="tour-actions">
           <button type="button" className="tour-skip" onClick={() => onClose(false)}>Skip tour</button>
+          {step.group && nextGroup !== i + 1 && nextGroup > 0 && (
+            <button type="button" className="tour-skip tour-skip-part" onClick={skipPart}>Skip section</button>
+          )}
           {i > 0 && <button type="button" onClick={back}>Back</button>}
           <button type="button" className="primary" onClick={next}>{last ? "Done" : "Next"}</button>
         </div>
