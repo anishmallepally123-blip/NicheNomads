@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { CATEGORIES, HELIO_R, OBJECTS, PLANET_ORBITS, UPWIND_DIR, eclipticPoint, position, scaleLy, type Category, type MapObject } from "./objects";
+import { CATEGORIES, HELIO_R, OBJECTS, PLANET_ORBITS, UPWIND_DIR, UPWIND_H_DIR, eclipticPoint, position, scaleLy, type Category, type MapObject } from "./objects";
 import "./space3d.css";
 
 const RINGS = [10, 100, 1000];
@@ -165,7 +165,12 @@ export default function Space3D({ embedded = false, onOpen }: Props) {
       const shell = new THREE.Mesh(geo, keep(new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide })));
       const wire = new THREE.Mesh(geo, keep(new THREE.MeshBasicMaterial({ color, wireframe: true, transparent: true, opacity: 0.14 })));
       const arrow = new THREE.ArrowHelper(up.clone().negate(), up.clone().multiplyScalar(4.2), 2.7, color.getHex(), 0.4, 0.22);
-      groups.imap.add(shell, wire, arrow);
+      const hUp = new THREE.Vector3(...UPWIND_H_DIR);
+      const hArrow = new THREE.ArrowHelper(hUp.clone().negate(), hUp.clone().multiplyScalar(4.2), 2.7, color.getHex(), 0.3, 0.16);
+      (hArrow.line.material as THREE.LineBasicMaterial).transparent = true;
+      (hArrow.line.material as THREE.LineBasicMaterial).opacity = 0.4;
+      groups.imap.add(shell, wire, arrow, hArrow);
+      disposables.push(hArrow);
       disposables.push(arrow);
     }
 
@@ -350,7 +355,7 @@ export default function Space3D({ embedded = false, onOpen }: Props) {
           {visible.map((o) => (
             <li key={o.id}>
               <button type="button" className={`s3d-cat-${o.category}`} aria-current={selected?.id === o.id} onClick={() => pick(o)}>
-                <i /> {o.name} <span>{o.category === "solar" ? o.distText?.split(" (")[0] : o.distText ? "IMAP" : fmtLy(o.ly).replace(" light-years", " ly")}</span>
+                <i /> {o.name} <span>{o.category === "solar" ? o.distText?.split(" from")[0] : o.distText ? "IMAP" : fmtLy(o.ly).replace(" light-years", " ly")}</span>
               </button>
             </li>
           ))}

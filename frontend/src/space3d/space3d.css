@@ -96,3 +96,4 @@
 .s3d-switch[aria-pressed="true"] { background: var(--color-paper-4); border-color: var(--color-rule-2); color: var(--color-ink); }
 .s3d-top .s3d-filters { pointer-events: none; }
 .s3d-filters > button { pointer-events: auto; }
+.s3d-switch[aria-pressed="false"] { color: var(--color-accent-ink); }

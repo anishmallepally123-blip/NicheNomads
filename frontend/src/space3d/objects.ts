@@ -61,10 +61,12 @@ function eclToEq(lon: number, lat: number): { ra: number; dec: number } {
   return { ra: ((ra / r) % 360 + 360) % 360, dec: dec / r };
 }
 
-/** Where the interstellar wind comes from: neutral helium inflow measured by
- *  IBEX (McComas et al. 2015), ecliptic longitude 255.7 deg, latitude 5.1 deg.
- *  NASA's IMAP (launched 2025) is measuring it again with IMAP-Lo. */
+/** Interstellar neutral inflow directions, ecliptic J2000, as quoted in the
+ *  IMAP science processing code (IMAP-Science-Operations-Center/imap_processing,
+ *  docs/source/algorithm-code-documentation/swapi/overview.rst):
+ *  helium from (255.7, 5.1) at 25.4 km/s, hydrogen from (252.2, 9.0) at 22 km/s. */
 export const UPWIND = eclToEq(255.7, 5.1);
+export const UPWIND_H = eclToEq(252.2, 9.0);
 /** Heliosphere nose radius on the map. The real one (~120 au) would be a
  *  speck, so it is drawn enlarged. */
 export const HELIO_R = 1.1;
@@ -74,6 +76,7 @@ const unit = (ra: number, dec: number): [number, number, number] => {
   return [Math.cos(d) * Math.cos(a), Math.sin(d), -Math.cos(d) * Math.sin(a)];
 };
 export const UPWIND_DIR = unit(UPWIND.ra, UPWIND.dec);
+export const UPWIND_H_DIR = unit(UPWIND_H.ra, UPWIND_H.dec);
 const along = (k: number) => UPWIND_DIR.map((c) => c * k) as [number, number, number];
 
 const imap: MapObject[] = [
@@ -87,10 +90,11 @@ const imap: MapObject[] = [
   },
   {
     id: "isnwind", name: "Interstellar wind", category: "imap", ...UPWIND, ly: 0, at: along(4.2),
-    kind: "Direction, not a star", distText: "Neutral helium arriving at about 26 km/s",
+    kind: "Direction, not a star", distText: "Helium at 25.4 km/s, hydrogen at 22 km/s",
     note: "The Sun moves through a thin interstellar cloud, so its atoms stream past us like a wind. This arrow " +
-      "points to where it comes from (in Ophiuchus, near the galactic centre direction). IMAP-Lo samples these atoms " +
-      "to learn what the cloud is made of. Open it in the viewer to see that patch of sky.",
+      "points to where it comes from, in Ophiuchus. The brighter arrow is helium, the fainter one hydrogen, which " +
+      "gets bent a little on its way in. The directions come from IMAP's own processing code; IMAP-Lo and SWAPI " +
+      "sample these atoms to learn what the cloud is made of. Open it in the viewer to see that patch of sky.",
   },
 ];
 
@@ -126,6 +130,19 @@ const planets: MapObject[] = PLANETS.map(([name, au, l0, period, note]) => {
     id: name.toLowerCase(), name, category: "solar", ra: 0, dec: 0, ly: au / 63241, at,
     kind: "Planet", distText: `${au} au from the Sun (${(au * 8.317).toFixed(au < 2 ? 1 : 0)} light-minutes)`, note, noViewer: true,
   };
+});
+
+// IMAP itself, 1.5 million km sunward of Earth at L1. That is 0.01 au, too
+// close to Earth to see at this scale, so it is drawn a little apart.
+const earth = planets.find((p) => p.id === "earth")!;
+planets.push({
+  id: "imapcraft", name: "IMAP (at L1)", category: "solar", ra: 0, dec: 0, ly: 0,
+  at: earth.at!.map((c) => c * 0.88) as [number, number, number],
+  kind: "NASA spacecraft, launched 2025", distText: "0.99 au from the Sun (drawn apart from Earth)",
+  note: "The Interstellar Mapping and Acceleration Probe sits at the Sun-Earth L1 point, always between us and " +
+    "the Sun. From there it maps the edge of the heliosphere with neutral atoms and watches the solar wind " +
+    "before it reaches Earth.",
+  noViewer: true,
 });
 
 export const OBJECTS: MapObject[] = [...targets, ...landmarks, ...imap, ...planets];
