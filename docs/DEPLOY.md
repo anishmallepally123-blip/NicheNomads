@@ -14,8 +14,11 @@ send CORS headers and browsers block direct calls from other sites.
 
 Optional: set `VITE_SENTRY_DSN` at build time to report browser errors to Sentry.
 
-Optional, Vercel only: set `ANTHROPIC_API_KEY` to switch on the Niche features
-(explain, plain-English search, mover notes). See [CLAUDE_SETUP.md](CLAUDE_SETUP.md).
+Niche (the chat helper, plain-English search and mover notes) needs no key or
+server. It is a small model (Qwen3 0.6B) that each visitor's browser downloads
+from Hugging Face the first time they open Niche or search in plain English,
+and then keeps in its cache. It is fastest with WebGPU (recent Chrome or Edge);
+other browsers fall back to the slower CPU version.
 
 ## Render, step by step
 

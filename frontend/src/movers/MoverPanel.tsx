@@ -1,11 +1,12 @@
 // "Find movers" card: runs the visit-to-visit subtraction (find.ts), lists
-// the candidates, marks them on the picture, and asks Claude for a short note
-// on each one. Detection works without Claude; only the notes need it.
+// the candidates, marks them on the picture, and, if the Niche model is
+// already loaded in this browser, asks it for a short note on each one.
+// Detection never needs the model.
 import { useCallback, useEffect, useState } from "react";
 import type { LoadedFrame } from "../api/client";
 import type { CatalogResult, LayerKey } from "../overlays/api";
 import { mjdNow, positionAt, skyToOffset, totalPm } from "../overlays/motion";
-import { askClaude, NotSetUp, parseJsonReply } from "../ai/claude";
+import { askNiche, nicheStatus, parseJsonReply, STYLE } from "../ai/niche";
 import { findMovers, type MoverCandidate, type MoverResult } from "./find";
 import Info from "../glossary/Info";
 import "../ai/ai.css";
@@ -22,11 +23,11 @@ export interface MoversState {
   show: boolean;
   selected: number | null;
   notes: Record<number, string>;
-  claude: "idle" | "busy" | "done" | "off" | "error";
-  claudeMessage: string | null;
+  ai: "idle" | "busy" | "done" | "off" | "error";
+  aiMessage: string | null;
 }
 
-const IDLE: MoversState = { result: null, show: true, selected: null, notes: {}, claude: "idle", claudeMessage: null };
+const IDLE: MoversState = { result: null, show: true, selected: null, notes: {}, ai: "idle", aiMessage: null };
 
 /** Nearest catalogue star with a measured motion, within 6 arcsec. */
 function catalogueMatch(c: MoverCandidate, layers: Partial<Record<LayerKey, CatalogResult>>) {
@@ -59,7 +60,7 @@ export function useMovers(
 
   const run = useCallback(async () => {
     const result = findMovers(frames, view);
-    setState({ ...IDLE, result, claude: result.candidates.length ? "busy" : "idle" });
+    setState({ ...IDLE, result, ai: result.candidates.length ? "busy" : "idle" });
     if (!result.candidates.length) return;
     const input = {
       field: { name: fieldName, ra: +view.ra.toFixed(4), dec: +view.dec.toFixed(4), field_arcmin: view.fov, detector: band },
@@ -76,16 +77,34 @@ export function useMovers(
         nearby_catalogue_star: catalogueMatch(c, layers),
       })),
     };
+    // Notes are a bonus: don't start a big download just for them.
+    if (nicheStatus().phase !== "ready") {
+      setState((s) => (s.result === result ? { ...s, ai: "off", aiMessage: "Open Niche (the chat button) once to also get a short note on each one." } : s));
+      return;
+    }
     try {
-      const reply = parseJsonReply<{ notes?: { id: number; text: string }[] }>(await askClaude("movers", input));
-      const notes: Record<number, string> = {};
-      for (const n of reply?.notes ?? []) if (typeof n.text === "string") notes[n.id] = n.text;
-      setState((s) => (s.result === result ? { ...s, notes, claude: "done" } : s));
-    } catch (err) {
-      const off = err instanceof NotSetUp;
-      setState((s) =>
-        s.result === result ? { ...s, claude: off ? "off" : "error", claudeMessage: err instanceof Error ? err.message : String(err) } : s,
+      const reply = parseJsonReply<{ notes?: { id: number; text: string }[] }>(
+        await askNiche(
+          [
+            {
+              role: "system",
+              content:
+                "You describe mover candidates found in SPHEREx images: dots whose position drifted across visits months apart. " +
+                "For each candidate write one plain sentence on what it might be (a nearby star or brown dwarf, or an artefact " +
+                "such as a saturated bright star, a blend, or noise) and how much to trust it. A catalogue star with a similar " +
+                "proper motion is strong support. SPHEREx pixels are about 6 arcsec, so shifts of a few arcsec are near the limit. " +
+                'Reply with JSON only: {"notes": [{"id": number, "text": string}]}. ' + STYLE,
+            },
+            { role: "user", content: JSON.stringify(input).slice(0, 3000) },
+          ],
+          60 + 60 * result.candidates.length,
+        ),
       );
+      const notes: Record<number, string> = {};
+      for (const n of reply?.notes ?? []) if (typeof n.text === "string") notes[n.id] = n.text.slice(0, 300);
+      setState((s) => (s.result === result ? { ...s, notes, ai: "done" } : s));
+    } catch (err) {
+      setState((s) => (s.result === result ? { ...s, ai: "error", aiMessage: err instanceof Error ? err.message : String(err) } : s));
     }
   }, [frames, view, band, layers, fieldName]);
 
@@ -198,12 +217,12 @@ export default function MoverPanel({ movers, frames, loading, onCentre }: Props)
           ))}
         </ol>
       )}
-      {state.claude === "busy" && <p className="muted">Asking Niche to describe each one…</p>}
-      {state.claude === "done" && Object.keys(state.notes).length > 0 && (
+      {state.ai === "busy" && <p className="muted">Asking Niche to describe each one…</p>}
+      {state.ai === "done" && Object.keys(state.notes).length > 0 && (
         <p className="ai-credit">Notes written by Niche from the numbers above. Treat them as a first guess.</p>
       )}
-      {(state.claude === "off" || state.claude === "error") && (
-        <p className="ai-off">{state.claudeMessage} Detection still works; only the notes are missing.</p>
+      {(state.ai === "off" || state.ai === "error") && (
+        <p className="ai-off">{state.aiMessage}{state.ai === "error" && " Detection still works; only the notes are missing."}</p>
       )}
     </section>
   );

@@ -1,20 +1,20 @@
 // Search box helper shared by the homepage and the viewer. Coordinates and
-// the built-in target names are read straight away, with no Claude call.
+// the built-in target names are read straight away, with no model call.
 // Anything else ("fast brown dwarf near Orion", "the closest star") goes to
-// Claude, which picks an object. If SIMBAD knows that object we use SIMBAD's
-// position (moved along its proper motion to today), because a model's
-// remembered coordinates can be a little off.
+// Niche, the small model running in the browser, which names an object. We
+// then look that name up in SIMBAD and use SIMBAD's position (moved along its
+// proper motion to today).
 import { resolve, TARGETS } from "../data/targets";
 import { lookupName } from "../describe/simbad";
 import { mjdNow, positionAt } from "../overlays/motion";
-import { askClaude, NotSetUp, parseJsonReply } from "./claude";
+import { askNiche, NicheUnavailable, parseJsonReply } from "./niche";
 
 export interface SearchHit {
   ra: number;
   dec: number;
   name: string | null;
   band?: number;
-  /** Set when Claude picked the place: one sentence saying why. */
+  /** Set when Niche picked the place: one sentence saying why. */
   why?: string;
 }
 
@@ -35,43 +35,46 @@ export async function smartResolve(query: string, signal?: AbortSignal): Promise
 
   let text: string;
   try {
-    text = await askClaude(
-      "search",
-      {
-        query: query.slice(0, 200),
-        targets: TARGETS.map((t) => ({ id: t.id, name: t.name, ra: t.ra, dec: t.dec, about: t.note.split(". ")[0] })),
-      },
-      signal,
+    text = await askNiche(
+      [
+        {
+          role: "system",
+          content:
+            "The user describes something in the sky. Name the one real astronomical object that fits best. " +
+            "If one of these built-in targets fits, use its exact name: " +
+            TARGETS.map((t) => `${t.name} (${t.note.split(". ")[0]})`).join("; ") +
+            '. Reply with JSON only, like {"name": "Proxima Centauri", "why": "It is the closest star to the Sun."}. ' +
+            "The name must be one the SIMBAD database knows. The why is one short sentence. " +
+            'If nothing fits, reply {"name": null, "why": "<short reason>"}.',
+        },
+        { role: "user", content: query.slice(0, 200) },
+      ],
+      80,
     );
   } catch (err) {
-    if (err instanceof NotSetUp) {
-      throw new Error(
-        "Plain-English search isn't switched on yet. Try coordinates like 133.7951 -7.2451, or a test target name like Barnard's Star.",
-      );
+    if (err instanceof NicheUnavailable) {
+      throw new Error(`${err.message} Search still takes coordinates like 133.7951 -7.2451, or a name like Barnard's Star.`);
     }
     throw err;
   }
 
-  const pick = parseJsonReply<{ name: string | null; simbad?: string; ra?: number; dec?: number; target_id?: string | null; why?: string }>(text);
-  if (!pick || !pick.name) throw new Error(pick?.why ?? "Couldn't find anything that matches. Try other words or coordinates.");
-  const why = pick.why?.slice(0, 200);
+  // A small model's guesses need checking: we only accept a built-in target
+  // or a name SIMBAD can find, and always take SIMBAD's position, never one
+  // the model remembers.
+  const pick = parseJsonReply<{ name?: string | null; why?: string }>(text);
+  const name = typeof pick?.name === "string" ? pick.name.trim().slice(0, 80) : "";
+  if (!name) throw new Error(pick?.why ?? "Couldn't find anything that matches. Try other words, a name, or coordinates.");
+  const why = typeof pick?.why === "string" ? pick.why.slice(0, 200) : undefined;
 
-  const target = TARGETS.find((t) => t.id === pick.target_id);
+  const norm = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const target = TARGETS.find((t) => norm(t.name) === norm(name) || norm(t.id) === norm(name));
   if (target) return { ra: target.ra, dec: target.dec, name: target.name, band: target.suggested_band, why };
 
-  const found = await lookupName(pick.simbad || pick.name, signal).catch(() => null);
-  if (found) {
-    // SIMBAD positions are J2000; fast movers have drifted since.
-    const now = positionAt(found.ra, found.dec, found.pmra, found.pmdec, J2000_MJD, mjdNow());
-    return { ra: round6(now.ra), dec: round6(now.dec), name: found.name, why };
-  }
-
-  const ra = Number(pick.ra);
-  const dec = Number(pick.dec);
-  if (!Number.isFinite(ra) || !Number.isFinite(dec) || ra < 0 || ra >= 360 || Math.abs(dec) > 90) {
-    throw new Error(`Niche suggested ${pick.name}, but we couldn't get a position for it.`);
-  }
-  return { ra: round6(ra), dec: round6(dec), name: pick.name, why: `${why ?? ""} (Position from Niche, not checked against SIMBAD.)`.trim() };
+  const found = await lookupName(name, signal).catch(() => null);
+  if (!found) throw new Error(`Niche suggested "${name}", but SIMBAD doesn't know that name. Try other words, a name, or coordinates.`);
+  // SIMBAD positions are J2000; fast movers have drifted since.
+  const now = positionAt(found.ra, found.dec, found.pmra, found.pmdec, J2000_MJD, mjdNow());
+  return { ra: round6(now.ra), dec: round6(now.dec), name: found.name, why };
 }
 
 // The "why" sentence survives the jump from the homepage to the viewer.
