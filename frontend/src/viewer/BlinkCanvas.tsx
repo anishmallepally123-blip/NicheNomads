@@ -454,7 +454,7 @@ function drawOverlays(ctx: CanvasRenderingContext2D, geom: Geom, showMarker: boo
   ctx.moveTo(16, side - 18);
   ctx.lineTo(16 + barPx, side - 18);
   ctx.stroke();
-  ctx.font = "12px system-ui, sans-serif";
+  ctx.font = "15px VT323, monospace";
   ctx.fillText(barArcsec >= 60 ? `${barArcsec / 60}′` : `${barArcsec}″`, 16, side - 24);
 
   // compass: north up, east left
