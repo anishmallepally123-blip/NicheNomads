@@ -25,10 +25,17 @@ const simbad = {
   rewrite: (path: string) => path.replace(/^\/simbad/, ""),
 };
 
+// IMAP's real-time (I-ALiRT) space weather feed, for the 3D map's solar wind card.
+const ialirt = {
+  target: "https://ialirt.imap-mission.com",
+  changeOrigin: true,
+  rewrite: (path: string) => path.replace(/^\/ialirt/, ""),
+};
+
 export default defineConfig({
   plugins: [react()],
   // The Niche model runs in a module worker that imports transformers.js.
   worker: { format: "es" },
-  server: { port: 5173, proxy: { "/irsa": irsa, "/simbad": simbad } },
-  preview: { port: 4173, proxy: { "/irsa": irsa, "/simbad": simbad } },
+  server: { port: 5173, proxy: { "/irsa": irsa, "/simbad": simbad, "/ialirt": ialirt } },
+  preview: { port: 4173, proxy: { "/irsa": irsa, "/simbad": simbad, "/ialirt": ialirt } },
 });
