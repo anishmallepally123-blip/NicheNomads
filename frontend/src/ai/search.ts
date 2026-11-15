@@ -69,9 +69,9 @@ export async function smartResolve(query: string, signal?: AbortSignal): Promise
   const ra = Number(pick.ra);
   const dec = Number(pick.dec);
   if (!Number.isFinite(ra) || !Number.isFinite(dec) || ra < 0 || ra >= 360 || Math.abs(dec) > 90) {
-    throw new Error(`Claude suggested ${pick.name}, but we couldn't get a position for it.`);
+    throw new Error(`Niche suggested ${pick.name}, but we couldn't get a position for it.`);
   }
-  return { ra: round6(ra), dec: round6(dec), name: pick.name, why: `${why ?? ""} (Position from Claude, not checked against SIMBAD.)`.trim() };
+  return { ra: round6(ra), dec: round6(dec), name: pick.name, why: `${why ?? ""} (Position from Niche, not checked against SIMBAD.)`.trim() };
 }
 
 // The "why" sentence survives the jump from the homepage to the viewer.

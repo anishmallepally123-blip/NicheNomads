@@ -1,5 +1,5 @@
-// Small server-side helper for the three Claude features (explain this
-// object, plain-English search, mover descriptions). It runs as a Vercel
+// Small server-side helper for the two Niche features (plain-English
+// search and mover descriptions). It runs as a Vercel
 // serverless function at /api/claude, and the Vite dev server mounts the same
 // code locally (frontend/vite.config.ts).
 //
@@ -21,23 +21,13 @@ const PER_IP_LIMIT = 20; // requests per visitor...
 const PER_IP_WINDOW_MS = 10 * 60 * 1000; // ...per 10 minutes
 const DAILY_LIMIT = Number(env().CLAUDE_DAILY_LIMIT ?? 600); // all visitors, per instance
 
-type Task = "explain" | "search" | "movers";
+type Task = "search" | "movers";
 
 const STYLE =
   "Write for a curious teenager or a member of the public. Plain words, short sentences, no markdown, " +
   "no headings, no bullet points. Be accurate. If you are not sure about a fact, say so instead of guessing.";
 
 const TASKS: Record<Task, { maxTokens: number; system: string }> = {
-  explain: {
-    maxTokens: 350,
-    system:
-      "You explain what someone is looking at in the Niche Space Directory, a website that blinks NASA SPHEREx " +
-      "infrared images of one patch of sky taken on different dates, so nearby objects that move can be spotted. " +
-      "You get JSON facts about the current view: coordinates, field size, catalogue matches from SIMBAD, our own " +
-      "notes for challenge targets, the SPHEREx band and dates. Using only those facts plus well-known astronomy, " +
-      "write 3 to 5 sentences: what the main object is, why it is interesting, and what to look for in the blink. " +
-      "If nothing notable is catalogued, explain what the faint dots probably are. " + STYLE,
-  },
   search: {
     maxTokens: 220,
     system:
@@ -82,7 +72,7 @@ function rateLimited(ip: string): string | null {
     day = today;
     dayCount = 0;
   }
-  if (dayCount >= DAILY_LIMIT) return "The site has used up today's Claude allowance. Try again tomorrow.";
+  if (dayCount >= DAILY_LIMIT) return "The site has used up today's Niche allowance. Try again tomorrow.";
   const recent = (hits.get(ip) ?? []).filter((t) => now - t < PER_IP_WINDOW_MS);
   if (recent.length >= PER_IP_LIMIT) return "That's a lot of questions in a short time. Wait a few minutes and try again.";
   recent.push(now);
@@ -102,7 +92,7 @@ let client: Anthropic | null = null;
 /** Shared by the Vercel function and the Vite dev middleware. */
 export async function handleClaude(raw: unknown, ip: string): Promise<Reply> {
   const key = env().ANTHROPIC_API_KEY;
-  if (!key) return { status: 503, body: { code: "no_key", error: "Claude isn't set up on this site yet." } };
+  if (!key) return { status: 503, body: { code: "no_key", error: "Niche isn't set up on this site yet." } };
 
   const req = (raw ?? {}) as { task?: string; input?: unknown };
   const task = req.task as Task;
@@ -126,19 +116,19 @@ export async function handleClaude(raw: unknown, ip: string): Promise<Reply> {
       messages: [{ role: "user", content: input }],
     });
     if (msg.stop_reason === "refusal") {
-      return { status: 502, body: { code: "upstream", error: "Claude declined to answer that one." } };
+      return { status: 502, body: { code: "upstream", error: "Niche declined to answer that one." } };
     }
     const text = msg.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("").trim();
     return { status: 200, body: { text } };
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) {
-      return { status: 429, body: { code: "rate_limited", error: "Claude is busy right now. Try again in a minute." } };
+      return { status: 429, body: { code: "rate_limited", error: "Niche is busy right now. Try again in a minute." } };
     }
     if (err instanceof Anthropic.AuthenticationError) {
-      return { status: 503, body: { code: "no_key", error: "The site's Claude key isn't working. Ask the site owner to check it." } };
+      return { status: 503, body: { code: "no_key", error: "The site's Niche key isn't working. Ask the site owner to check it." } };
     }
     console.error("claude call failed", err);
-    return { status: 502, body: { code: "upstream", error: "Couldn't reach Claude just now." } };
+    return { status: 502, body: { code: "upstream", error: "Couldn't reach Niche just now." } };
   }
 }
 

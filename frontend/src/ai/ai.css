@@ -1,5 +1,4 @@
-/* Claude features: explain, mover finder. Colours come from the tokens in styles.css. */
-.ai-explain { margin-top: var(--space-sm, 8px); }
+/* Niche features: search, mover finder. Colours come from the tokens in styles.css. */
 .ai-answer { border-left: 2px solid var(--color-cool); padding-left: 12px; }
 .ai-answer p { font-size: 14px; line-height: 1.55; margin: 6px 0; }
 .ai-credit, .ai-off { font-size: 12px; color: var(--color-muted); }

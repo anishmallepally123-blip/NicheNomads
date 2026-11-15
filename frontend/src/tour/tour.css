@@ -17,6 +17,8 @@
   background: var(--color-paper-3); color: var(--color-ink);
   border: var(--rule-hair) solid var(--color-rule-2); border-top: 3px solid var(--color-accent);
 }
+.tour-dim { background: oklch(8% 0.01 255 / 0.72); }
+.tour-welcome { top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 32px)); }
 .tour-card:focus { outline: none; }
 .tour-card h2 { margin: 0 0 var(--space-xs); font: 500 20px/1.2 var(--font-serif); }
 .tour-card p { margin: 0; font-size: var(--text-sm); line-height: 1.5; color: var(--color-muted); }
