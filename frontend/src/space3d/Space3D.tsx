@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { CATEGORIES, HELIO_R, OBJECTS, PLANET_ORBITS, UPWIND_DIR, UPWIND_H_DIR, eclipticPoint, position, scaleLy, type Category, type MapObject } from "./objects";
 import { SpectrumSection } from "../data/DataPanel";
+import SolarWind from "./SolarWind";
 import "../data/data.css";
 import "./space3d.css";
 
@@ -337,6 +338,7 @@ export default function Space3D({ embedded = false, onOpen }: Props) {
             <h2>{selected.name}</h2>
             <p className="s3d-dist">{selected.distText ?? `${fmtLy(selected.ly)} from the Sun`}</p>
             <p className="s3d-note">{selected.note}</p>
+            {(selected.category === "imap" || selected.id === "imapcraft") && <SolarWind />}
             {!selected.noViewer && selected.category !== "imap" && (
               <div className="s3d-spectrum">
                 <SpectrumSection
