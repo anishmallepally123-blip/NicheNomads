@@ -62,3 +62,16 @@ body:has(.tour) .niche-btn, body:has(.tour) .niche-panel { display: none; }
   background: var(--color-paper-2); border: 1px solid var(--color-rule-2); border-radius: var(--radius-card);
   box-shadow: 0 10px 30px oklch(0% 0 0 / 0.45);
 }
+
+/* Ask before the first download. Above the chat, below the tutorial. */
+.niche-ask-wrap { position: fixed; inset: 0; z-index: 950; display: grid; place-items: center; padding: 16px; background: oklch(0% 0 0 / 0.55); }
+.niche-ask {
+  width: min(400px, 100%); padding: 20px; display: grid; gap: 10px;
+  background: var(--color-paper-2); color: var(--color-ink);
+  border: 1px solid var(--color-rule-2); border-radius: var(--radius-card);
+  box-shadow: 0 20px 50px oklch(0% 0 0 / 0.5);
+}
+.niche-ask h2 { margin: 0; font-family: var(--font-serif); font-size: var(--text-lg); color: var(--color-accent); }
+.niche-ask p { margin: 0; line-height: 1.5; color: var(--color-ink-2); }
+.niche-ask-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+button.niche-link, button.niche-link:hover:not(:disabled) { background: none; border: 0; padding: 0; color: var(--color-accent); text-decoration: underline; cursor: pointer; font: inherit; }

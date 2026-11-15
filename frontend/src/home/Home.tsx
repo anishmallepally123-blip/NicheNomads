@@ -67,9 +67,7 @@ export default function Home({ onGo }: Props) {
         <section className="home-hero">
           <h1>Welcome to the <em>niche</em> directory</h1>
           <p className="home-lede">
-            SPHEREx has photographed the whole sky several times since 2025. Type a position and we line up
-            every picture of that spot and play them like a flipbook. Far away stars stay still. Something close
-            by, like a cold brown dwarf, shifts a little from one picture to the next.
+            Flip through SPHEREx pictures of any spot in the sky and watch nearby objects move.
           </p>
           <form className="home-search" onSubmit={submit}>
             <label htmlFor="home-coords">Where should we look?</label>
