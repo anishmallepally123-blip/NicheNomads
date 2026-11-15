@@ -13,8 +13,16 @@ const fmt = (d: Date) => d.toISOString().slice(0, 19);
 async function latestWind(signal: AbortSignal): Promise<Wind> {
   const end = new Date();
   const start = new Date(end.getTime() - 24 * 3600 * 1000);
-  const url = `/ialirt/space-weather?instrument=swapi&time_utc_start=${fmt(start)}&time_utc_end=${fmt(end)}`;
-  const res = await fetch(url, { signal });
+  const query = `/space-weather?instrument=swapi&time_utc_start=${fmt(start)}&time_utc_end=${fmt(end)}`;
+  // Straight to IMAP first; the /ialirt proxy (dev server, Netlify) covers
+  // the case where the browser blocks the cross-site call.
+  let res: Response;
+  try {
+    res = await fetch(`https://ialirt.imap-mission.com${query}`, { signal });
+  } catch (err) {
+    if (signal.aborted) throw err;
+    res = await fetch(`/ialirt${query}`, { signal });
+  }
   if (!res.ok) throw new Error(`IMAP feed answered ${res.status}`);
   const rows = (await res.json()) as Record<string, unknown>[];
   for (let i = rows.length - 1; i >= 0; i--) {

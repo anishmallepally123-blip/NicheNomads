@@ -6,7 +6,6 @@
   "framework": null,
   "rewrites": [
     { "source": "/irsa/:path*", "destination": "https://irsa.ipac.caltech.edu/:path*" },
-    { "source": "/simbad/:path*", "destination": "https://simbad.cds.unistra.fr/:path*" },
-    { "source": "/ialirt/:path*", "destination": "https://ialirt.imap-mission.com/:path*" }
+    { "source": "/simbad/:path*", "destination": "https://simbad.cds.unistra.fr/:path*" }
   ]
 }
