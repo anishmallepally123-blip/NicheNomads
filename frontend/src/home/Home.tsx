@@ -98,6 +98,7 @@ export default function Home({ onGo }: Props) {
         </section>
 
         <figure className="home-chart">
+          <p className="home-chart-tag">SPHEREx images, sorted by Niche</p>
           <Suspense fallback={<div className="s3d-loading">Loading Niche in 3D…</div>}>
             <Space3D embedded onOpen={(o) => onGo({ ra: o.ra, dec: o.dec, band: o.band })} />
           </Suspense>
