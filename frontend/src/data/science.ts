@@ -469,6 +469,24 @@ export function binByChannel(points: SpectrumPoint[]) {
   });
 }
 
+/** Forced photometry of (ra, dec) in each of `frames`. `onDone` counts finished exposures. */
+export function measureFrames(frames: Frame[], ra: number, dec: number, signal?: AbortSignal, onDone?: () => void) {
+  return Promise.all(
+    frames.map(async (f): Promise<SpectrumPoint> => {
+      const info = { id: f.id, detector: f.detector, mjd: f.mjd, date: f.date };
+      try {
+        const [grid, cut] = await Promise.all([psfGrid(f, ra, dec, signal), fetchCutout(f, ra, dec, STAMP_DEG, signal)]);
+        return { ...measure(cut, grid, f.detector, ra, dec), ...info } as SpectrumPoint;
+      } catch (err) {
+        if (signal?.aborted) throw err;
+        return { ok: false, reason: `could not read: ${err}`.slice(0, 200), wavelength: null, ...info };
+      } finally {
+        onDone?.();
+      }
+    }),
+  );
+}
+
 const spectra = new Map<string, Promise<unknown>>();
 
 /** Spectrum at a sky position: forced PSF photometry in every exposure. */
@@ -478,18 +496,7 @@ export function spectrum(ra: number, dec: number, signal?: AbortSignal) {
   if (cached) return cached as ReturnType<typeof run>;
   const run = async () => {
     const frames = await searchFrames(ra, dec, false, signal);
-    const points: SpectrumPoint[] = await Promise.all(
-      frames.map(async (f) => {
-        const info = { id: f.id, detector: f.detector, mjd: f.mjd, date: f.date };
-        try {
-          const [grid, cut] = await Promise.all([psfGrid(f, ra, dec, signal), fetchCutout(f, ra, dec, STAMP_DEG, signal)]);
-          return { ...measure(cut, grid, f.detector, ra, dec), ...info } as SpectrumPoint;
-        } catch (err) {
-          if (signal?.aborted) throw err;
-          return { ok: false, reason: `could not read: ${err}`.slice(0, 200), wavelength: null, ...info };
-        }
-      }),
-    );
+    const points = await measureFrames(frames, ra, dec, signal);
     points.sort((a, b) => (a.wavelength ?? 99) - (b.wavelength ?? 99) || a.mjd - b.mjd);
     return {
       ra, dec, band: null, unit: "uJy",
