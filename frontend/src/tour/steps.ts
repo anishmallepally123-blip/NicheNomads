@@ -16,7 +16,17 @@ export const HOME_STEPS: Step[] = [
   {
     target: ".home-chart",
     title: "Or pick a star in 3D",
-    body: "Niche in 3D shows the test targets around the Sun. Drag to turn it, then click a star's name to open it.",
+    body: "Niche in 3D shows the test targets around the Sun. Drag to turn it and click a star for its SPHEREx spectrum, or open it.",
+  },
+  {
+    target: ".s3d-filters",
+    title: "Groups and our solar system",
+    body: "Show or hide groups of stars here. Our solar system switches to the planets and IMAP, with live solar wind readings.",
+  },
+  {
+    target: ".sources-btn",
+    title: "Where it comes from",
+    body: "Our sources lists every archive and catalogue the site uses, with links to learn more.",
   },
   {
     target: ".home-search button.primary",
@@ -107,7 +117,7 @@ export const VIEWER_STEPS: Step[] = [
     group: HELP,
     target: "a[href$='?view=3d']",
     title: "Niche in 3D",
-    body: "See where the targets sit around the Sun in a 3D map, and click one to fly back here.",
+    body: "See where the targets sit around the Sun, switch to our solar system and IMAP, and click a star to fly back here.",
   },
   {
     group: HELP,
@@ -120,6 +130,12 @@ export const VIEWER_STEPS: Step[] = [
     target: "#glossary",
     title: "Stuck on a word?",
     body: "Each little ? button explains a word. The full list is down here.",
+  },
+  {
+    group: HELP,
+    target: ".sources-btn",
+    title: "Our sources",
+    body: "Every archive and catalogue behind these pictures, with links to learn more.",
   },
   {
     group: HELP,
